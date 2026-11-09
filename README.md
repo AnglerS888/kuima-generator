@@ -165,6 +165,8 @@ git clone https://github.com/AnglerS888/kuima-generator.git    # 线路 2：国�
 ```bash
 docker build -t wxcode .
 
+mkdir -p data && sudo chown -R 10001:10001 data   # 容器内以 uid 10001 运行，绑定目录要能写
+
 docker run -d --name wxcode \
   -p 8080:8080 \
   -v $(pwd)/data:/app/data \
@@ -172,6 +174,9 @@ docker run -d --name wxcode \
   -e ADMIN_PASSWORD='换成你自己的密码' \
   wxcode
 ```
+
+> 用具名卷（`-v wxcode-data:/app/data`）就不用管权限；绑定宿主机目录时要让 uid 10001 可写。
+> 后台「立即更新」需要 `/app` 目录可写，官方镜像已 `chown -R app:app /app`；用旧镜像请重新构建。
 
 也可以用 compose（数据存在 `wxcode-data` 卷里）：
 

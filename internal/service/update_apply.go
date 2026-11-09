@@ -189,6 +189,16 @@ func runApply(force bool) {
 	}
 	jobPatch(func(j *UpdateJob) { j.Version = info.Latest })
 
+	// 0) 先确认程序目录可写：两条更新路径都要替换二进制，权限问题先拦住，
+	//    否则会先试产物、再试源码，把同一个错误报两遍。
+	if exe, err := executablePath(); err != nil {
+		jobFail(err.Error())
+		return
+	} else if err := checkWritable(exe); err != nil {
+		jobFail(err.Error())
+		return
+	}
+
 	// 1) 先试发布产物
 	assetErr := applyFromAsset(ctx)
 	if assetErr == nil {
@@ -271,8 +281,11 @@ func applyFromSource(ctx context.Context, version string) error {
 	}
 
 	jobSet(StageBuild, "编译中（首次编译要下载依赖，可能需要几分钟）…", -1)
-	out := filepath.Join(tmpDir, "wxcode.new")
+	// 直接编译到程序目录（exe.new）：/tmp 有可能是另一个挂载点（tmpfs），
+	// 跨设备 rename 会报 invalid cross-device link，同目录就没这个问题。
+	out := exe + ".new"
 	if err := runGoBuild(ctx, goBin, srcDir, out, version); err != nil {
+		_ = os.Remove(out)
 		return fmt.Errorf("编译失败：%w", err)
 	}
 	return finishUpdate(exe, out, 90)
@@ -604,7 +617,13 @@ func checkWritable(exe string) error {
 	dir := filepath.Dir(exe)
 	f, err := os.CreateTemp(dir, ".wxcode-write-test-*")
 	if err != nil {
-		return fmt.Errorf("程序所在目录不可写（%s）：%v；容器可能以只读文件系统启动，请改用 bin/deploy.sh 重建镜像", dir, err)
+		return fmt.Errorf("程序所在目录不可写（%s）：%v。\n"+
+			"在线更新需要在程序目录里改文件名并写入新程序，所以该目录必须对运行用户可写：\n"+
+			"  * 用官方镜像时 /app 已 chown 给 app 用户；如果你是旧镜像，请重新构建（bin/deploy.sh）；\n"+
+			"  * 自己改过 Dockerfile / 用 --user 指定了别的用户，请保证该用户对 %s 有写权限；\n"+
+			"  * 容器以只读文件系统启动（--read-only）时无法内部更新，请改用 bin/deploy.sh 重建镜像；\n"+
+			"  * 想立刻恢复：docker exec -u 0 <容器名> chown -R app:app /app（只对当前容器生效，重建容器后失效）",
+			dir, err, dir)
 	}
 	name := f.Name()
 	_ = f.Close()

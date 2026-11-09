@@ -78,12 +78,15 @@ COPY --from=builder /app/wxcode /app/wxcode
 
 # 数据目录（SQLite 文件放这里），挂卷持久化
 ENV DATA_DIR=/app/data
+# ⚠ 必须把整个 /app 交给 app 用户，而不只是 /app/wxcode：
+# 在线更新要先把 wxcode 改名成 wxcode.old、再写入新文件，这需要「目录」写权限。
+# 只 chown 文件时 rename 会报 permission denied。
 RUN mkdir -p /app/data && \
     adduser -D -H -u 10001 app && \
-    chown -R app:app /app/wxcode /app/data
+    chown -R app:app /app
 VOLUME ["/app/data"]
 
-# 容器内以 nobody 运行，降低被利用的影响面
+# 容器内以非 root 的 app 用户（uid 10001）运行，降低被利用的影响面
 USER app
 
 EXPOSE 8080
