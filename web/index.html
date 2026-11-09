@@ -1,0 +1,3186 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="theme-color" content="#2f6bff">
+<title>{{SITE_NAME}} · 葵花码在线生成与解析</title>
+<meta name="description" content="在线生成和解析微信葵花码（太阳码），支持 PNG、JPG、SVG、GIF，支持中心 logo、整屏截图与手机拍照识别。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{SITE_NAME}} · 葵花码在线生成与解析">
+<meta property="og:description" content="免费生成、解析微信葵花码（太阳码），支持 PNG、JPG、SVG、GIF 与普通二维码识别。">
+<meta property="og:url" content="{{BASE_URL}}/">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="{{BASE_URL}}/">
+<link rel="icon" type="image/png" href="/icon.png?v={{ICON_V}}">
+<link rel="apple-touch-icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/vendor/bootstrap.min.css?v={{BOOTSTRAP_V}}">
+<style>
+  /* ================= 主题变量（与 auth.css 同一套令牌） ================= */
+  :root{
+    --brand:#2f6bff; --brand-2:#1e4fd8; --brand-soft:rgba(47,107,255,.10);
+    /* 实心品牌按钮渐变：比 --brand 深一档，白字压上面才够 4.5:1 */
+    --brand-solid:#2a5fd8; --brand-solid-2:#1e4fd8; --on-brand:#fff;
+    /* 浅底上做文字用的语义色（--brand/--warn 偏亮，直接压浅底只有 3:1 左右） */
+    --brand-ink:#2a5fd8; --warn-ink:#8f5f00; --danger-ink:#c22a20;
+    --bg:#f4f6fa; --panel:#ffffff; --panel-2:#f7f9fc; --line:#e6eaf1; --line-2:#eef1f6;
+    --fg:#131a26; --dim:#67707f;
+    --nav-bg:rgba(255,255,255,.85);
+    --code-bg:#0e1320; --code-fg:#e6ecf8; --code-dim:#7d8aa3;
+    --shadow:0 1px 2px rgba(18,26,40,.04), 0 8px 24px -16px rgba(18,26,40,.28);
+    --shadow-lift:0 2px 4px rgba(18,26,40,.05), 0 14px 34px -18px rgba(18,26,40,.32);
+    --thumb-bg:#ffffff;
+    --ok:#0f9d58; --warn:#c07f00; --danger:#d93025;
+  }
+  html[data-theme="dark"]{
+    --brand:#6ea0ff; --brand-2:#4b83ff; --brand-soft:rgba(110,160,255,.14);
+    --brand-solid:#6ea0ff; --brand-solid-2:#4b83ff; --on-brand:#0a1017;
+    --brand-ink:#6ea0ff; --warn-ink:#ffb454; --danger-ink:#ff8a8a;
+    --bg:#0b0e14; --panel:#151a24; --panel-2:#10151e; --line:#242d3c; --line-2:#1b2330;
+    --fg:#eaeffa; --dim:#95a2b8;
+    --thumb-bg:#151a24;
+    --nav-bg:rgba(13,17,25,.8);
+    --code-bg:#080b11; --code-fg:#dfe7f5; --code-dim:#7b89a1;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 26px -18px rgba(0,0,0,.7);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.4), 0 16px 36px -18px rgba(0,0,0,.8);
+    --ok:#4ade80; --warn:#ffb454; --danger:#ff8a8a;
+  }
+
+  *{-webkit-tap-highlight-color:transparent}
+  body{
+    background-color:var(--bg);color:var(--fg);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease,color .2s ease;
+    padding-bottom:3.5rem;
+    background-image:radial-gradient(1100px 480px at 50% -220px, var(--brand-soft), transparent 72%);
+    background-repeat:no-repeat;
+  }
+  a{color:var(--brand-ink);text-decoration:none;transition:color .15s ease}
+  a:hover{color:var(--brand-2);text-decoration:none}
+  a:focus-visible,button:focus-visible,.form-control:focus-visible,.custom-select:focus-visible{
+    outline:2px solid var(--brand);outline-offset:2px;border-radius:4px
+  }
+  ::selection{background:var(--brand-soft)}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+  .text-dim{color:var(--dim)!important}
+  hr{border-top:1px solid var(--line-2);margin:1.15rem 0}
+
+  /* ================= 站内公告（后台可配，注入在 nav 之后） ================= */
+  /* 与首页主容器共用 Bootstrap 容器宽度；
+     不要再给 announce-inner 单独写 max-width，否则宽屏会差一个 gutter。 */
+  .site-announce{padding:.7rem 15px .15rem}
+  .announce-inner{max-width:none;margin:0;display:flex;gap:.6rem;align-items:flex-start;
+    padding:.6rem .85rem .6rem .7rem;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--brand);border-radius:.85rem;box-shadow:var(--shadow);
+    transition:background-color .2s ease,border-color .2s ease}
+  .announce-ic{width:1.45rem;height:1.45rem;flex:0 0 auto;display:grid;place-items:center;
+    border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);margin-top:.08rem}
+  .announce-ic svg{width:.85rem;height:.85rem}
+  .announce-text{min-width:0;color:var(--fg);font-size:.84rem;line-height:1.7;
+    white-space:pre-wrap;word-break:break-word}
+  @media(max-width:575.98px){
+    .site-announce{padding:.55rem 15px .1rem}
+    .announce-inner{padding:.5rem .6rem;gap:.5rem;border-radius:.75rem}
+    .announce-text{font-size:.8rem;line-height:1.65}
+  }
+
+  /* ================= 导航 ================= */
+  .nav-glass{
+    position:sticky;top:0;z-index:1030;
+    background:var(--nav-bg);
+    -webkit-backdrop-filter:saturate(180%) blur(14px);
+    backdrop-filter:saturate(180%) blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:.55rem;font-weight:700;font-size:1.02rem;
+    letter-spacing:-.01em;color:var(--fg);padding:.35rem 0;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand:hover{color:var(--fg)}
+  .brand-mark{
+    width:27px;height:27px;border-radius:8px;flex:0 0 auto;display:block;object-fit:cover;
+    box-shadow:0 2px 8px -3px rgba(47,107,255,.55);
+  }
+
+  .nav-pill{display:inline-flex;align-items:center;gap:.35rem;color:var(--dim);
+    font-weight:500;font-size:.9rem;padding:.34rem .85rem;border-radius:.6rem;margin:.1rem .12rem;
+    transition:.16s ease}
+  .nav-pill:hover{color:var(--brand-ink);background:var(--brand-soft)}
+  .nav-pill:active{transform:scale(.97)}
+  .nav-pill.active{color:var(--on-brand);background:linear-gradient(135deg,var(--brand-solid),var(--brand-solid-2));
+    box-shadow:0 4px 12px -6px var(--brand)}
+  html[data-theme="dark"] .nav-pill.active{color:var(--on-brand)}
+
+  .icon-btn{
+    width:34px;height:34px;display:grid;place-items:center;border-radius:.6rem;
+    border:1px solid var(--line);background:var(--panel);color:var(--dim);cursor:pointer;
+    transition:.16s ease;padding:0
+  }
+  .icon-btn:hover{color:var(--brand-ink);border-color:var(--brand);background:var(--brand-soft)}
+  .icon-btn:active{transform:scale(.94)}
+  .nav-account{display:inline-flex;align-items:center;gap:.35rem;height:34px;padding:0 .6rem;
+    border:1px solid var(--line);border-radius:.6rem;color:var(--dim);font-size:.8rem;
+    background:var(--panel);transition:.15s ease;max-width:11rem;text-decoration:none}
+  .nav-account:hover{color:var(--brand-ink);border-color:var(--brand);text-decoration:none}
+  .nav-account svg{width:16px;height:16px;flex:0 0 auto}
+  .nav-account span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nav-account .quota{color:var(--brand-ink);font-weight:600;font-family:ui-monospace,Menlo,monospace}
+  .icon-btn svg{width:17px;height:17px;display:block}
+  .icon-btn svg.ic-moon{display:none}
+  html[data-theme="dark"] .icon-btn svg.ic-sun{display:none}
+  html[data-theme="dark"] .icon-btn svg.ic-moon{display:block}
+
+  /* ================= 卡片 ================= */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);transition:box-shadow .2s ease,border-color .2s ease}
+  .panel:hover{box-shadow:var(--shadow-lift)}
+  .panel > .panel-body{padding:1.3rem 1.4rem}
+  .panel-head{display:flex;align-items:center;gap:.6rem;row-gap:.4rem;flex-wrap:wrap;margin-bottom:.25rem}
+  .panel-dot{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;
+    background:var(--brand-soft);color:var(--brand-ink);font-size:.72rem;font-weight:700;flex:0 0 auto}
+  .panel-title{font-size:.98rem;font-weight:700;letter-spacing:-.015em;margin:0}
+  .panel-sub{color:var(--dim);font-size:.8rem;margin:.35rem 0 1rem;line-height:1.6}
+
+  /* ================= 表单 ================= */
+  .field{display:block;font-size:.72rem;letter-spacing:.03em;color:var(--dim);
+    margin-bottom:.3rem;font-weight:500}
+  .form-control,.custom-select{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--fg);
+    border-radius:10px;font-size:.88rem;transition:.16s ease
+  }
+  .form-control:hover,.custom-select:hover{border-color:var(--dim)}
+  .form-control:focus,.custom-select:focus{
+    background:var(--panel);color:var(--fg);border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)
+  }
+  .form-control::placeholder{color:var(--dim);opacity:.65}
+  .form-control-sm{height:calc(1.5em + .55rem + 2px);padding:.25rem .6rem}
+  textarea.form-control{line-height:1.6}
+  input[type=color].form-control{padding:.15rem;height:calc(1.5em + .55rem + 2px);cursor:pointer}
+  input[type=color].form-control::-webkit-color-swatch{border:none;border-radius:.35rem}
+
+  /* 分段选择器 */
+  .seg{display:flex;gap:2px;padding:3px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+  .seg button{flex:1 1 0;border:0;background:transparent;color:var(--dim);font-size:.8rem;font-weight:600;
+    padding:.38rem .2rem;border-radius:.45rem;cursor:pointer;transition:.16s ease;letter-spacing:.02em}
+  .seg button:hover{color:var(--brand-ink);background:var(--brand-soft)}
+  .seg button:active{transform:scale(.96)}
+  .seg button.active{background:linear-gradient(135deg,var(--brand-solid),var(--brand-solid-2));color:var(--on-brand);
+    box-shadow:0 3px 10px -6px var(--brand)}
+  html[data-theme="dark"] .seg button.active{color:var(--on-brand)}
+  .seg button:disabled{opacity:.35;cursor:not-allowed;background:transparent;color:var(--dim);box-shadow:none}
+
+  /* ================= 按钮 ================= */
+  .btn{border-radius:10px;font-size:.86rem;font-weight:500;padding:.5rem 1rem;transition:.16s ease}
+  .btn:active{transform:scale(.97)}
+  .btn-brand{background:linear-gradient(135deg,var(--brand-solid),var(--brand-solid-2));border:0;color:#fff;
+    box-shadow:0 6px 16px -10px var(--brand);font-weight:600;padding:.5rem 1.4rem}
+  .btn-brand:hover{filter:brightness(1.06);color:#fff;transform:translateY(-1px)}
+  .btn-brand:active{transform:none;filter:brightness(.97)}
+  html[data-theme="dark"] .btn-brand{color:#0a1017}
+  html[data-theme="dark"] .btn-brand:hover{color:#0a1017}
+  .btn-ghost{background:var(--panel);border:1px solid var(--line);color:var(--fg)}
+  .btn-ghost:hover{border-color:var(--brand);color:var(--brand-ink);background:var(--brand-soft)}
+  .btn-ghost:active{transform:scale(.97)}
+  .btn-ghost:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line);color:var(--dim)}
+  .btn-ghost svg,.btn-brand svg{width:15px;height:15px;margin-right:.35rem;vertical-align:-2px}
+  .btn-sm{padding:.32rem .7rem;font-size:.8rem}
+  .link-btn{background:none;border:0;color:var(--dim);font-size:.8rem;cursor:pointer;padding:0;transition:color .15s ease}
+  .link-btn:hover{color:var(--brand-ink)}
+
+  /* ================= 预览 ================= */
+  /* 预览框：用 padding-top 撑正方形，不依赖 aspect-ratio。
+     iOS 15 以下的 Safari 不认 aspect-ratio，会退化成"按图片原始比例撑高"，
+     一张 1080×2400 的竖版截图就能把预览框拉成一米长的空盒子；
+     而 img{height:100%} 在网格布局里又会被内容撑回原比例，同样溢出。 */
+  .thumb{position:relative;width:100%;max-width:302px;margin:0 auto;
+    background:var(--thumb-bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    color:var(--dim);font-size:.8rem;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.02), var(--shadow);
+    transition:box-shadow .2s ease,border-color .2s ease}
+  .thumb:hover{border-color:var(--dim)}
+  .thumb::before{content:"";display:block;padding-top:100%}
+  .thumb>img,.thumb>canvas{position:absolute;inset:0;width:100%;height:100%;
+    object-fit:contain;display:block;animation:pop .22s ease}
+  .thumb>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  @keyframes pop{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+  .thumb-cap{text-align:center;color:var(--dim);font-size:.74rem;margin:.6rem 0 .9rem}
+
+  .logo-pick{display:flex;align-items:center;gap:.6rem}
+  .logo-thumb{width:42px;height:42px;object-fit:cover;border-radius:.55rem;border:1px solid var(--line);
+    background:#fff;flex:0 0 auto}
+
+  /* 预设 LOGO：管理员在后台维护，这里横排一行缩略图，点一下就套用 */
+  .preset-strip{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.55rem}
+  .preset-strip[hidden]{display:none}
+  .preset-logo{display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;
+    padding:.32rem .38rem;border:1px solid var(--line);border-radius:.6rem;background:var(--panel-2);
+    transition:border-color .15s ease,background .15s ease,transform .12s ease}
+  .preset-logo>img{width:36px;height:36px;object-fit:contain;border-radius:.4rem;background:#fff}
+  .preset-logo>span{font-size:.66rem;color:var(--dim);max-width:4.6rem;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .preset-logo:hover{border-color:var(--brand);background:var(--brand-soft);transform:translateY(-1px)}
+  .preset-logo.active{border-color:var(--brand);background:var(--brand-soft)}
+  .preset-logo.active>span{color:var(--brand-ink)}
+  .preset-logo:disabled{opacity:.6;cursor:progress}
+
+  /* 规格 chips */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.85rem}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:.6rem;padding:.5rem .6rem;
+    position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;top:0;left:0;width:100%;height:2px;
+    background:linear-gradient(90deg,var(--brand),transparent 80%)}
+  .stat .k{font-size:.68rem;color:var(--dim);letter-spacing:.03em;display:block;line-height:1.3}
+  .stat .v{font-size:.84rem;font-weight:650;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:1.5}
+  .info-dl{font-size:.78rem;margin:0}
+  .info-dl dt{color:var(--dim);font-weight:400;width:4.9rem;float:left;clear:left;line-height:1.75}
+  .info-dl dd{margin-left:5.1rem;margin-bottom:.15rem;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;line-height:1.75}
+  .info-dl dd.ok{color:var(--ok);font-weight:600}
+
+  /* ================= 解码结果：内容框 + 操作条 ================= */
+  .dec-box{border:1px solid var(--line);border-radius:12px;background:var(--panel-2);
+    overflow:hidden;margin-bottom:.7rem}
+  .dec-box-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+    padding:.32rem .45rem .32rem .7rem;border-bottom:1px solid var(--line-2);
+    font-size:.72rem;color:var(--dim);letter-spacing:.03em}
+  .dec-box-body{padding:.6rem .7rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:.8rem;line-height:1.65;word-break:break-all;white-space:pre-wrap;
+    max-height:9.5rem;overflow:auto;color:var(--fg);font-weight:600;
+    cursor:text;user-select:text;-webkit-user-select:text}
+  .btn-copy-inline{border:1px solid var(--line);background:var(--panel);color:var(--fg);
+    font-size:.7rem;font-weight:600;padding:.1rem .45rem;border-radius:.35rem;cursor:pointer;
+    line-height:1.6;transition:.15s ease;white-space:nowrap}
+  .btn-copy-inline:hover{border-color:var(--brand);color:var(--brand-ink)}
+  .btn-copy-inline.done{color:var(--ok);border-color:var(--ok)}
+  .dec-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.9rem}
+  .dec-actions .btn{display:inline-flex;align-items:center}
+  .dec-actions .btn-ic{width:14px;height:14px;margin-right:.35rem}
+  html[data-theme="dark"] .btn-copy-inline{background:rgba(255,255,255,.05)}
+
+  /* ================= 上传 ================= */
+  .dropzone{border:1.5px dashed var(--line);border-radius:14px;padding:2.1rem 1rem;text-align:center;
+    color:var(--dim);cursor:pointer;transition:.18s ease;background:var(--panel-2)}
+  .dropzone:hover,.dropzone.hot{border-color:var(--brand);color:var(--brand);background:var(--brand-soft);
+    box-shadow:0 4px 16px -12px var(--brand)}
+  .dropzone svg{width:26px;height:26px;margin-bottom:.45rem;opacity:.75;transition:transform .18s ease}
+  .dropzone:hover svg,.dropzone.hot svg{transform:translateY(-2px)}
+  .dropzone b{display:block;color:var(--fg);margin-bottom:.15rem;font-size:.9rem;font-weight:600}
+  .dropzone.hot b{color:var(--brand)}
+  .tips{font-size:.78rem;color:var(--dim);padding-left:1.1rem;margin:0}
+  .tips li{margin-bottom:.3rem;line-height:1.6}
+
+  /* ================= 代码 / Try ================= */
+  .code-wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--code-bg)}
+  .code-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+    padding:.5rem .75rem;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:.74rem;color:var(--code-dim);font-family:ui-monospace,Menlo,monospace}
+  .code-head .dots{display:flex;gap:4px;margin-right:.35rem}
+  .code-head .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.16);display:block}
+  pre.code{margin:0;background:transparent;color:var(--code-fg);padding:.85rem 1rem;
+    font:12.5px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:auto;
+    white-space:pre;max-height:22rem}
+  pre.code::-webkit-scrollbar{height:8px;width:8px}
+  pre.code::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px}
+  pre.code .c{color:var(--code-dim)}
+  .btn-copy{border:1px solid rgba(255,255,255,.14);background:transparent;color:var(--code-dim);
+    border-radius:.35rem;font-size:.7rem;padding:.12rem .55rem;cursor:pointer;transition:.15s ease}
+  .btn-copy:hover{color:#fff;border-color:rgba(255,255,255,.35)}
+  .btn-copy:active{transform:scale(.96)}
+
+  .endpoint{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
+  .method{font-family:ui-monospace,Menlo,monospace;font-size:.7rem;font-weight:700;
+    padding:.16rem .45rem;border-radius:.35rem;letter-spacing:.03em}
+  .method-post{background:rgba(47,107,255,.12);color:#2f6bff}
+  .method-get{background:rgba(15,157,88,.12);color:#0f9d58}
+  html[data-theme="dark"] .method-post{background:rgba(110,160,255,.16);color:#9dc0ff}
+  html[data-theme="dark"] .method-get{background:rgba(74,222,128,.14);color:#7ff0a8}
+  .path{font-family:ui-monospace,Menlo,monospace;font-size:.84rem;font-weight:600;color:var(--fg)}
+
+  .trybox{border:1px dashed var(--line);border-radius:12px;padding:1rem;background:var(--panel-2);margin-top:.9rem}
+  .try-tag{display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;
+    letter-spacing:.06em;color:var(--brand);background:var(--brand-soft);border-radius:.35rem;
+    padding:.12rem .45rem;margin-bottom:.65rem}
+  .try-out{margin-top:.7rem;font-size:.78rem}
+  .try-out:empty{display:none}
+  .try-out img{max-width:170px;border:1px solid var(--line);border-radius:.5rem;background:#fff}
+  .status-pill{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:.72rem;
+    font-weight:700;padding:.12rem .45rem;border-radius:.35rem;white-space:nowrap}
+  .status-ok{background:rgba(15,157,88,.14);color:#0f9d58}
+  .status-bad{background:rgba(217,48,37,.14);color:#d93025}
+  html[data-theme="dark"] .status-ok{background:rgba(74,222,128,.16);color:#7ff0a8}
+  html[data-theme="dark"] .status-bad{background:rgba(255,138,138,.16);color:#ff9b9b}
+
+  .table-sm td,.table-sm th{border-color:var(--line-2);font-size:.8rem}
+  .table thead th{border-bottom:1px solid var(--line);color:var(--dim);font-weight:600;font-size:.72rem;
+    letter-spacing:.05em;text-transform:uppercase}
+  .table td code{background:var(--brand-soft);color:var(--brand);border-radius:.3rem;
+    padding:.05rem .3rem;font-size:.76rem}
+  .api-doc{margin-top:1rem;border-top:1px dashed var(--line);padding-top:.9rem}
+  .api-doc-title{font-size:.72rem;color:var(--dim);letter-spacing:.05em;margin:.2rem 0 .4rem;font-weight:600;
+    text-transform:uppercase}
+  .api-table{font-size:.76rem}
+  .api-table th{font-size:.7rem;color:var(--dim);font-weight:600;border-bottom-color:var(--line);white-space:nowrap}
+  .api-table td{border-color:var(--line-2);vertical-align:top;line-height:1.65;word-break:break-word}
+  .api-table td:first-child code{white-space:nowrap}
+  /* 短值列（位置 / 类型 / 必填）不换行；说明列必须能换行，
+     否则窄面板里说明一撑开，前面的状态码/字段列会被压成一列单字。 */
+  .api-table td:nth-child(2),.api-table td:nth-child(3){color:var(--dim);white-space:nowrap}
+  /* 多数表里「说明」就是最后一列：放在上面两条之后声明，同优先级下覆盖 nowrap */
+  .api-table td:last-child{color:var(--dim);white-space:normal;word-break:break-word}
+  /* 响应表是 状态|说明|Content-Type，说明在第 2 列，单独放开 */
+  .api-table.api-resp td.api-col-desc,
+  .api-table.api-resp td:nth-child(3){white-space:normal}
+  /* 响应表：状态列按内容收缩但绝不换行 */
+  .api-table.api-resp th:first-child,
+  .api-table.api-resp td:first-child{width:1%;white-space:nowrap;padding-right:.55rem}
+  .ct-tag{display:inline-block;margin:0 .18rem .2rem 0;padding:.02rem .3rem;border-radius:.3rem;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--dim);
+    font:11px/1.6 ui-monospace,Menlo,monospace;white-space:nowrap}
+  /* 窄屏时给媒体类型列一个上限，把宽度还给「说明」列（否则说明只剩 7 个字一行） */
+  @media (max-width:640px){
+    .api-table.api-resp td:nth-child(3){max-width:7.5rem}
+  }
+
+  /* ================= Swagger 风格接口浏览器 ================= */
+  .api-explorer{max-width:1140px;margin:0 auto}
+  .api-topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;
+    padding:1rem 1.15rem;margin-bottom:.75rem}
+  .api-kicker{font-size:.66rem;letter-spacing:.16em;font-weight:700;color:var(--brand)}
+  .api-topbar h2{font-size:1.18rem;font-weight:750;letter-spacing:-.02em;margin:.1rem 0 .25rem}
+  .api-topbar p{font-size:.8rem;color:var(--dim);margin:0;line-height:1.65}
+  .api-downloads{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+  .api-downloads .btn{white-space:nowrap}
+  .api-authbar{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;
+    padding:.55rem .75rem;margin-bottom:.75rem;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel-2);font-size:.76rem;color:var(--dim)}
+  .api-authbar label{font-weight:650;color:var(--fg);margin:0}
+  .api-authbar .form-control{width:min(18rem,60vw);height:30px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .api-authbar .link-btn{font-size:.74rem}
+  .api-authhint{margin-left:auto;font-size:.72rem}
+  .api-layout{display:grid;grid-template-columns:18.5rem minmax(0,1fr);gap:.85rem;align-items:start}
+  .api-side{position:sticky;top:76px;display:flex;flex-direction:column;
+    max-height:calc(100vh - 96px);padding:.55rem;overflow:hidden}
+  .api-search-wrap{position:relative;flex:0 0 auto;padding:.15rem}
+  .api-search-wrap svg{position:absolute;left:.75rem;top:50%;width:15px;height:15px;
+    transform:translateY(-50%);color:var(--dim);pointer-events:none}
+  .api-search-wrap .form-control{height:34px;padding-left:2rem;font-size:12.5px}
+  .api-nav{overflow:auto;padding:.3rem .1rem;min-height:6rem;scrollbar-width:thin}
+  .api-group{margin-bottom:.55rem}
+  .api-group-title{display:flex;align-items:center;justify-content:space-between;
+    padding:.35rem .5rem;font-size:.67rem;font-weight:750;letter-spacing:.09em;
+    color:var(--dim);text-transform:uppercase}
+  .api-group-title span{font-weight:600;letter-spacing:0;opacity:.75}
+  .api-nav-item{width:100%;display:flex;align-items:flex-start;gap:.42rem;text-align:left;
+    border:1px solid transparent;background:transparent;color:var(--fg);border-radius:.5rem;
+    padding:.42rem .45rem;margin:.08rem 0;cursor:pointer;transition:.15s ease;font-family:inherit}
+  .api-nav-item:hover{background:var(--brand-soft);border-color:var(--line)}
+  .api-nav-item.active{background:var(--brand-soft);border-color:var(--brand)}
+  .api-nav-item .method{flex:0 0 auto;font-size:.58rem;padding:.1rem .28rem;margin-top:.06rem}
+  .api-nav-text{min-width:0;display:flex;flex-direction:column;gap:.08rem}
+  .api-nav-path{font:600 .73rem/1.45 ui-monospace,Menlo,monospace;color:var(--fg);
+    word-break:break-all}
+  .api-nav-summary{font-size:.68rem;line-height:1.4;color:var(--dim);
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .api-nav-lock{flex:0 0 auto;margin-left:auto;font-size:.6rem;color:var(--warn);
+    border:1px solid rgba(192,127,0,.3);border-radius:999px;padding:.04rem .3rem}
+  .api-side-foot{display:flex;align-items:flex-start;gap:.4rem;padding:.55rem .35rem .1rem;
+    border-top:1px solid var(--line-2);font-size:.67rem;color:var(--dim);line-height:1.5}
+  .api-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:0 0 auto;margin-top:.35rem}
+  .api-loading{padding:1.2rem .7rem;color:var(--dim);font-size:.78rem;text-align:center}
+  .api-placeholder{padding:2.4rem 1rem;min-height:18rem}
+  .api-stage{min-width:0}
+  .api-detail{overflow:hidden}
+  .api-op-head{padding:1.05rem 1.15rem .9rem;border-bottom:1px solid var(--line-2);
+    background:linear-gradient(135deg,var(--brand-soft),transparent 55%)}
+  .api-op-line{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .api-op-line .method{font-size:.7rem;padding:.16rem .5rem}
+  .api-op-path{background:var(--panel-2);border:1px solid var(--line);border-radius:.4rem;
+    padding:.16rem .45rem;font-size:.82rem;color:var(--fg);word-break:break-all}
+  .api-auth-badge{font-size:.66rem;font-weight:650;border-radius:999px;padding:.1rem .45rem;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--dim)}
+  .api-auth-badge.auth-user{color:var(--brand-ink);border-color:rgba(47,107,255,.3);background:var(--brand-soft)}
+  .api-auth-badge.auth-admin{color:var(--warn-ink);border-color:rgba(192,127,0,.3);background:rgba(192,127,0,.08)}
+  .api-op-title{font-size:1.05rem;font-weight:750;letter-spacing:-.015em;margin:.55rem 0 .25rem}
+  .api-op-desc{font-size:.8rem;line-height:1.7;color:var(--dim);margin:0;white-space:pre-wrap}
+  .api-op-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;
+    font:11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--dim)}
+  .api-op-meta .btn{margin-left:auto;font-family:inherit}
+  .api-detail-body{padding:.95rem 1.15rem 1.15rem}
+  .api-section{margin-top:1rem}
+  .api-section:first-child{margin-top:0}
+  .api-section-title{display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem;
+    font-size:.78rem;font-weight:750;letter-spacing:.01em}
+  .api-section-title span{font-size:.67rem;color:var(--dim);font-weight:500}
+  .api-section .table-responsive{border:1px solid var(--line);border-radius:.55rem;overflow:auto}
+  .api-section .api-table{margin:0}
+  .api-section .api-table th:first-child,.api-section .api-table td:first-child{padding-left:.65rem}
+  .api-content-label{font:600 .68rem/1.5 ui-monospace,Menlo,monospace;color:var(--brand);
+    margin:.55rem 0 .3rem}
+  .api-authhint code{font-size:.7rem}
+  .api-try-box{border:1px dashed var(--line);border-radius:.65rem;background:var(--panel-2);padding:.8rem}
+  .api-try-hint{font-size:.72rem;color:var(--dim);margin:0 0 .65rem;line-height:1.6}
+  .api-try-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+  .api-try-field{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+  .api-try-field.api-wide{grid-column:1/-1}
+  .api-try-field>span{font-size:.71rem;font-weight:600;color:var(--dim)}
+  .api-try-field>span i{font-style:normal;color:var(--danger);font-weight:500;margin-left:.2rem}
+  .api-try-field .form-control{font-size:.78rem;min-height:34px}
+  .api-try-field textarea.form-control{min-height:7.5rem;line-height:1.6;
+    font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .api-try-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.7rem}
+  .api-try-state{font-size:.72rem;color:var(--dim)}
+  .api-try-out{margin-top:.75rem;border-top:1px solid var(--line-2);padding-top:.7rem}
+  .api-try-out[hidden]{display:none}
+  .api-try-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.45rem}
+  .api-try-out pre{margin:0;max-height:22rem;overflow:auto;border-radius:.5rem;background:var(--code-bg);
+    color:var(--code-fg);padding:.7rem .8rem;font:12px/1.65 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+  .api-try-out img{max-width:190px;max-height:190px;border:1px solid var(--line);
+    border-radius:.5rem;background:#fff;object-fit:contain}
+  .api-curl{border:1px solid var(--line);border-radius:.55rem;background:var(--panel-2);margin-top:1rem}
+  .api-curl summary{cursor:pointer;padding:.55rem .7rem;font-size:.73rem;font-weight:650;color:var(--dim)}
+  .api-curl pre{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;max-height:18rem}
+
+  /* ================= 请求 / 响应示例（JSON 高亮 + 字段对齐） ================= */
+  /* 示例块沿用暗色代码底，两套主题下都保持同一观感；注释列由后端对齐好再送过来 */
+  .api-example{margin:.15rem 0 .75rem;border-radius:.6rem}
+  .api-example pre.code{max-height:26rem;white-space:pre;padding:.7rem .85rem;
+    font-size:12px;line-height:1.75;tab-size:2}
+  .api-example pre.code.wrap{white-space:pre-wrap;word-break:break-word}
+  .json-code .j-key{color:#8ab4ff}
+  .json-code .j-str{color:#a7e8b4}
+  .json-code .j-num{color:#ffc46b}
+  .json-code .j-lit{color:#ff9b9b}
+  .json-code .j-cmt{color:#7f8ea8}
+  .api-fields .field-path{font-family:ui-monospace,Menlo,monospace;font-size:.74rem}
+  .api-fields .field-path .field-arr{color:var(--dim)}
+  .api-sub{font-size:.72rem;color:var(--dim);margin:.1rem 0 .45rem;line-height:1.6}
+  .api-empty{padding:2rem .9rem;text-align:center;color:var(--dim);font-size:.8rem}
+  .method-put{background:rgba(192,127,0,.12);color:#a86f00}
+  .method-delete{background:rgba(217,48,37,.11);color:#d93025}
+  html[data-theme="dark"] .method-put{background:rgba(255,180,84,.14);color:#ffc46b}
+  html[data-theme="dark"] .method-delete{background:rgba(255,138,138,.14);color:#ff9b9b}
+
+  .pane{animation:fade .22s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* custom-file 跟随主题 */
+  .custom-file-label{border-radius:10px;color:var(--dim);font-size:.84rem;background:var(--panel-2);
+    border:1px solid var(--line);height:calc(1.5em + .55rem + 2px);line-height:1.5;display:flex;align-items:center}
+  .custom-file-label::after{background:var(--line-2);color:var(--dim);border-left:1px solid var(--line);
+    height:calc(1.5em + .55rem);line-height:1.5;display:flex;align-items:center;border-radius:0 10px 10px 0}
+  .custom-file-input:focus ~ .custom-file-label{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .custom-control-label{font-size:.82rem;color:var(--fg);cursor:pointer}
+  .custom-control-input:checked ~ .custom-control-label::before{background-color:var(--brand);border-color:var(--brand)}
+  .custom-control-input:focus ~ .custom-control-label::before{box-shadow:0 0 0 3px var(--brand-soft)}
+  html[data-theme="dark"] .custom-control-label::before{background-color:var(--panel-2);border-color:var(--line)}
+
+  /* ================= 响应式 ================= */
+  @media (max-width:991.98px){
+    .thumb{max-width:260px}
+  }
+  @media (max-width:575.98px){
+    body{padding-bottom:2.5rem}
+    .panel > .panel-body{padding:1.05rem .95rem}
+    .nav-pill{margin:.14rem 0}
+    .thumb{max-width:230px}
+    .stats{gap:.4rem}
+    .stat{padding:.42rem .5rem}
+    .stat .v{font-size:.78rem}
+    .info-dl dt{width:4.2rem}
+    .info-dl dd{margin-left:4.4rem}
+    .btn-brand{padding:.5rem 1rem}
+    /* iOS 聚焦时字号 <16px 会强制放大页面 */
+    .form-control,.custom-select{font-size:16px;height:42px}
+    textarea.form-control{height:auto;min-height:5.5rem}
+    .btn{min-height:40px}
+    .btn-sm{min-height:32px}
+    .code{font-size:11.5px}
+    .code-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .dropdown-menu{font-size:.9rem}
+    .table-wrap{max-height:none}
+  }
+  @media(max-width:900px){
+    .api-layout{display:block}
+    .api-side{position:static;max-height:none;margin-bottom:.75rem}
+    .api-nav{max-height:17rem}
+    .api-topbar{align-items:flex-start;flex-direction:column}
+    .api-downloads{justify-content:flex-start}
+  }
+  @media(max-width:575.98px){
+    .api-topbar{padding:.85rem .9rem}
+    .api-downloads{width:100%}
+    .api-downloads .btn{flex:1 1 0;min-width:0;padding-left:.4rem;padding-right:.4rem}
+    .api-authbar{gap:.4rem}
+    .api-authbar .form-control{width:100%;order:3;flex:1 1 100%}
+    .api-authhint{margin-left:0;order:4;flex:1 1 100%}
+    .api-op-head{padding:.9rem .85rem .8rem}
+    .api-detail-body{padding:.85rem}
+    .api-try-grid{grid-template-columns:1fr}
+    .api-nav{max-height:20rem}
+  }
+
+
+  /* 水印设置折叠按钮 */
+  .wm-toggle{display:inline-flex;align-items:center;gap:.35rem;margin-top:.45rem;padding:.28rem .6rem;
+    font-size:.78rem;line-height:1.4;color:var(--dim);background:transparent;cursor:pointer;
+    border:1px dashed var(--line);border-radius:8px;transition:color .15s,border-color .15s}
+  .wm-toggle:hover{color:var(--brand-ink);border-color:var(--brand)}
+  .wm-toggle .wm-caret{font-size:.7rem;transition:transform .15s ease}
+  .wm-toggle.open .wm-caret{transform:rotate(180deg)}
+</style>
+</head>
+<body>
+
+<!-- ================= 导航 ================= -->
+<nav class="nav-glass">
+  <div class="container">
+    <div class="d-flex align-items-center justify-content-between py-2">
+      <a class="brand" href="#gen" data-tab="gen">
+        <img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="{{SITE_NAME}}" width="27" height="27">{{SITE_NAME}}
+      </a>
+
+      <div class="d-flex align-items-center d-lg-none" style="gap:.4rem">
+        <a class="icon-btn" id="navAccountIcon" href="/login" aria-label="登录 / 个人中心" title="登录 / 个人中心">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.6 4.2-5.2 7.5-5.2s6.1 1.6 7.5 5.2"/>
+          </svg>
+        </a>
+        <!-- 窄屏的白天/黑夜开关：放在顶栏，紧挨着展开图标，不再塞进折叠菜单 -->
+        <button class="icon-btn" id="themeBtnSm" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+          <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+          </svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="navToggle" type="button" aria-label="展开导航" aria-controls="navMobile" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="d-none d-lg-flex align-items-center">
+        <div class="mr-1">
+          <a class="nav-pill active" href="#gen" data-tab="gen">生成</a>
+          <a class="nav-pill" href="#dec" data-tab="dec">解码</a>
+          <a class="nav-pill" href="#add" data-tab="add">好友码</a>
+          <a class="nav-pill" href="#api" data-tab="api">接口</a>
+        </div>
+        <a class="nav-account ml-2" id="navAccount" href="/login" title="登录 / 个人中心">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.6 4.2-5.2 7.5-5.2s6.1 1.6 7.5 5.2"/>
+          </svg>
+          <span id="navAccountText">登录</span>
+        </a>
+        <button class="icon-btn ml-2" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+          <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+          </svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 手机端展开区 -->
+    <div class="d-lg-none pb-2" id="navMobile" style="display:none">
+      <div class="d-flex flex-column">
+        <a class="nav-pill active" href="#gen" data-tab="gen">生成</a>
+        <a class="nav-pill" href="#dec" data-tab="dec">解码</a>
+        <a class="nav-pill" href="#add" data-tab="add">好友码</a>
+        <a class="nav-pill" href="#api" data-tab="api">接口</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4">
+
+  <!-- ============ 1. 生成 ============ -->
+  <section class="pane" id="pane-gen">
+    <div class="row">
+      <div class="col-lg-7 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="panel-head">
+              <h1 class="panel-title">输入内容，生成太阳码</h1>
+            </div>
+            <p class="panel-sub">支持网址与文本。URL 字母表内约 ≤58 字符，含中文走字节模式（约 ≤44 字节）。</p>
+
+            <div class="mb-3">
+              <label class="field" for="text">内容</label>
+              <textarea class="form-control" id="text" rows="2" placeholder="输入网址或文本"></textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <span class="text-dim" style="font-size:.72rem">Ctrl / ⌘ + Enter 快速生成</span>
+                <span class="text-dim" style="font-size:.72rem" id="lenHint"></span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="size">尺寸 px</label>
+                <input type="number" class="form-control form-control-sm" id="size" value="600" min="120" max="2000" step="20">
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="margin">白边 px</label>
+                <input type="number" class="form-control form-control-sm" id="margin" value="0" min="0" max="200" step="4">
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="level">纠错 ≥</label>
+                <select class="custom-select custom-select-sm" id="level">
+                  <option value="L" selected>L（默认）</option>
+                  <option value="M">M</option>
+                  <option value="Q">Q</option>
+                  <option value="H">H</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="version">版本</label>
+                <select class="custom-select custom-select-sm" id="version">
+                  <option value="auto" selected>自动</option>
+                  <option value="0">v0</option>
+                  <option value="1">v1</option>
+                  <option value="2">v2</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="fg">前景色</label>
+                <input type="color" class="form-control form-control-sm" id="fg" value="#000000">
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="bg">背景色</label>
+                <input type="color" class="form-control form-control-sm" id="bg" value="#ffffff">
+              </div>
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field">输出格式</label>
+                <div class="seg" id="fmtGroup">
+                  <button type="button" data-fmt="png" class="active" aria-pressed="true">PNG</button>
+                  <button type="button" data-fmt="jpg" aria-pressed="false">JPG</button>
+                  <button type="button" data-fmt="svg" aria-pressed="false">SVG</button>
+                  <button type="button" data-fmt="gif" aria-pressed="false">GIF</button>
+                </div>
+                <div class="text-dim mt-1" style="font-size:.72rem" id="fmtHint">GIF 动图 logo 只能输出 GIF</div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="form-row align-items-end">
+              <div class="col-12 col-md-7 mb-2">
+                <label class="field" for="logoFile">中心 logo（PNG / JPG / GIF）</label>
+                <div class="logo-pick">
+                  <img id="logoThumb" class="logo-thumb d-none" alt="logo">
+                  <div class="flex-grow-1">
+                    <input type="file" id="logoFile" class="d-none" accept="image/png,image/jpeg,image/gif">
+                    <button class="btn btn-ghost btn-sm" id="btnPickLogo" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                      </svg>选择图片
+                    </button>
+                    <button class="btn btn-ghost btn-sm ml-1 d-none" id="btnPresetLogo" type="button"
+                            aria-expanded="false" aria-controls="presetStrip">用预设</button>
+                    <button class="link-btn ml-2 d-none" id="btnLogoClear" type="button">移除</button>
+                  </div>
+                </div>
+                <div class="preset-strip" id="presetStrip" hidden></div>
+                <div class="text-dim mt-1" style="font-size:.72rem" id="logoHint">建议正方形、透明背景；动图会自动保留动画</div>
+              </div>
+              <div class="col-12 col-md-5 mb-2">
+                <label class="field" for="logoRatio">logo 大小 <span id="ratioVal">1.0</span>×</label>
+                <input type="range" class="custom-range" id="logoRatio" min="0.5" max="1.3" step="0.05" value="1">
+              </div>
+            </div>
+
+            <div class="custom-control custom-switch">
+              <input type="checkbox" class="custom-control-input" id="badgeOn" checked>
+              <label class="custom-control-label" for="badgeOn">
+                显示角落徽标
+                <span class="text-dim" style="font-size:.74rem">（原生 SVG 里那个微信小程序图标，位图同样会画）</span>
+              </label>
+            </div>
+
+            <div class="wm-block mt-3" id="wmBlock" hidden>
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="wmOn" checked>
+                <label class="custom-control-label" for="wmOn">
+                  添加水印
+                  <span class="text-dim" style="font-size:.74rem" id="wmHint"></span>
+                </label>
+              </div>
+              <button type="button" class="wm-toggle" id="wmToggle" aria-expanded="false"
+                      aria-controls="wmFields" hidden>
+                <span id="wmToggleText">展开水印设置</span>
+                <span class="wm-caret">▾</span>
+              </button>
+              <div id="wmFields" hidden>
+                <div class="form-row align-items-end mt-1">
+                  <div class="col-12 col-md-4 mb-2">
+                    <label class="field" for="wmText">水印文字</label>
+                    <input class="form-control form-control-sm" id="wmText" maxlength="64" placeholder="例如：仅供内部使用">
+                  </div>
+                  <div class="col-6 col-md-3 mb-2">
+                    <label class="field" for="wmPosition">位置</label>
+                    <select class="form-control form-control-sm" id="wmPosition">
+                      <option value="top-left">左上角</option>
+                      <option value="top">顶部居中</option>
+                      <option value="top-right">右上角</option>
+                      <option value="center">居中</option>
+                      <option value="bottom-left">左下角</option>
+                      <option value="bottom">底部居中</option>
+                      <option value="bottom-right">右下角</option>
+                      <option value="tile">重复平铺</option>
+                      <option value="tile-diagonal">重复斜铺</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-2 mb-2">
+                    <label class="field" for="wmColor">颜色</label>
+                    <input type="color" class="form-control form-control-sm" id="wmColor" value="#1f2937">
+                  </div>
+                  <div class="col-12 col-md-3 mb-2">
+                    <label class="field" for="wmSize">字号 <span class="text-dim" id="wmSizeVal">20 px</span></label>
+                    <input type="range" class="custom-range" id="wmSize" min="8" max="240" step="1" value="20">
+                  </div>
+                  <div class="col-12 col-md-6 mb-2">
+                    <label class="field" for="wmOpacity">透明度 <span class="text-dim" id="wmOpacityVal">25%</span></label>
+                    <input type="range" class="custom-range" id="wmOpacity" min="0" max="100" step="1" value="25">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center mt-3">
+              <button class="btn btn-brand mr-2" id="btnGen" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2 4.5 13.5H11l-1 8.5 9-12h-6.5z"/>
+                </svg>生成
+              </button>
+              <button class="btn btn-ghost" id="btnPng" type="button" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/>
+                </svg>下载
+              </button>
+              <span class="small text-dim ml-auto" id="genState" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="thumb" id="thumb"><span>结果图</span></div>
+            <p class="thumb-cap" id="thumbHint">预览为等比缩放，下载得到原尺寸</p>
+            <div class="stats" id="encStats"></div>
+            <dl class="info-dl" id="encInfo">
+              <dt>提示</dt><dd>输入内容后点击「生成」</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 解码 ============ -->
+  <section class="pane d-none" id="pane-dec">
+    <div class="row">
+      <div class="col-lg-6 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="panel-head">
+              <h6 class="panel-title">上传图片，解码内容</h6>
+            </div>
+            <p class="panel-sub">支持 PNG / JPG / GIF；带 logo、轻微旋转、拍照实图都能识别。</p>
+
+            <div class="dropzone" id="drop" role="button" tabindex="0" aria-label="选择或拖入待解析图片">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+              </svg>
+              <b>点击选择，或把图片拖到这里</b>
+              上传后自动解析
+            </div>
+            <input type="file" id="file" class="d-none" accept="image/*">
+
+            <div class="d-flex flex-wrap align-items-center mt-3" style="gap:.5rem">
+              <button class="btn btn-ghost btn-sm" id="btnDemo" type="button">用刚才生成的码试一下</button>
+              <button class="btn btn-ghost btn-sm" id="btnCamera" type="button">拍照识别</button>
+              <span class="text-dim" style="font-size:.75rem">也可以直接 Ctrl/⌘+V 粘贴截图</span>
+            </div>
+
+            <hr>
+            <ul class="tips">
+              <li>单张最大 24MB；透明背景按白底处理。</li>
+              <li>中心带 logo、轻微旋转（实测 ±20°）、拍照实图都可识别。</li>
+              <li>解不出时提示「未通过 Reed-Solomon 校验」，多为图片被裁掉或压缩过度。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="panel-head">
+              <h6 class="panel-title">解码结果</h6>
+            </div>
+            <p class="panel-sub" id="decEmpty">上传图片后，这里会显示内容与码型参数。</p>
+            <div id="decResult" class="d-none">
+              <div class="thumb mb-3" style="max-width:200px"><img id="decImg" alt=""></div>
+
+              <div class="dec-box">
+                <div class="dec-box-head">
+                  <span>解码内容</span>
+                  <button class="btn-copy-inline" id="decCopy" type="button" title="复制到剪贴板">复制</button>
+                </div>
+                <div class="dec-box-body" id="decPayload" role="status" aria-live="polite">—</div>
+              </div>
+
+              <div class="dec-actions">
+                <button class="btn btn-brand btn-sm" id="decToGen" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round" class="btn-ic">
+                    <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>
+                  </svg>
+                  用这个内容生成太阳码
+                </button>
+                <button class="btn btn-ghost btn-sm" id="decCopy2" type="button">复制内容</button>
+                <span class="small text-dim ml-1" id="decActionHint"></span>
+              </div>
+
+              <div class="stats" id="decStats"></div>
+              <dl class="info-dl" id="decInfo"></dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 好友码 ============ -->
+  <section class="pane d-none" id="pane-add">
+    <div class="row">
+      <!-- 左：上传微信好友码 -->
+      <div class="col-lg-6 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="panel-head">
+              <h6 class="panel-title">上传微信「加好友」二维码</h6>
+            </div>
+            <p class="panel-sub">微信 -> 我 -> 头像 -> 二维码名片，截图后拖进来即可。程序会在服务端解出其中的链接。</p>
+
+            <div class="dropzone" id="addDrop" role="button" tabindex="0" aria-label="选择或拖入微信好友二维码图片">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+              </svg>
+              <b>点击选择好友二维码图片</b>
+              也支持直接拖进来
+            </div>
+            <input type="file" id="addFile" class="d-none" accept="image/*">
+
+            <div class="d-flex flex-wrap align-items-center mt-3" style="gap:.5rem">
+              <button class="btn btn-ghost btn-sm" id="addCamera" type="button">拍照识别</button>
+              <span class="text-dim" style="font-size:.75rem">也可以直接 Ctrl/⌘+V 粘贴截图</span>
+            </div>
+
+            <div class="mt-3">
+              <label class="field" for="addURL">解析出的链接（可手动改）</label>
+              <input type="text" class="form-control" id="addURL" placeholder="上传后自动填入，例如 https://u.wechat.com/xxxx">
+              <div class="text-dim mt-1" style="font-size:.74rem" id="addQRInfo">尚未上传</div>
+            </div>
+
+            <hr>
+            <ul class="tips">
+              <li>微信好友名片是标准二维码，内容是一条 <code>https://u.wechat.com/...</code> 链接。</li>
+              <li>服务端支持 QR 版本 1~40、L/M/Q/H 纠错，截图、拍照、带轻微旋转都能读。</li>
+              <li>解出的链接会直接作为太阳码内容，有效期与微信名片本身一致。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：生成太阳码 -->
+      <div class="col-lg-6 mb-3">
+        <div class="panel h-100">
+          <div class="panel-body">
+            <div class="panel-head">
+              <h6 class="panel-title">生成好友太阳码</h6>
+            </div>
+            <p class="panel-sub">参数与「生成」栏一致：格式、中心 logo（支持 GIF 动图）、角落徽标。</p>
+
+            <div class="form-row">
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field">输出格式</label>
+                <div class="seg" id="addFmtGroup">
+                  <button type="button" data-fmt="png" class="active">PNG</button>
+                  <button type="button" data-fmt="jpg">JPG</button>
+                  <button type="button" data-fmt="svg">SVG</button>
+                  <button type="button" data-fmt="gif">GIF</button>
+                </div>
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="addSize">尺寸 px</label>
+                <input type="number" class="form-control form-control-sm" id="addSize" value="600" min="120" max="2000" step="20">
+              </div>
+              <div class="col-6 col-md-3 mb-2">
+                <label class="field" for="addLevel">纠错 ≥</label>
+                <select class="custom-select custom-select-sm" id="addLevel">
+                  <option value="L" selected>L</option>
+                  <option value="M">M</option>
+                  <option value="Q">Q</option>
+                  <option value="H">H</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row align-items-end">
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field">中心 logo（PNG / JPG / GIF）</label>
+                <div class="logo-pick">
+                  <img id="addLogoThumb" class="logo-thumb d-none" alt="logo">
+                  <input type="file" id="addLogoFile" class="d-none" accept="image/png,image/jpeg,image/gif">
+                  <button class="btn btn-ghost btn-sm" id="addPickLogo" type="button">选择图片</button>
+                  <button class="btn btn-ghost btn-sm d-none" id="addPresetLogo" type="button"
+                          aria-expanded="false" aria-controls="addPresetStrip">用预设</button>
+                  <button class="link-btn d-none" id="addLogoClear" type="button">移除</button>
+                </div>
+                <div class="preset-strip" id="addPresetStrip" hidden></div>
+              </div>
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field" for="addLogoRatio">logo 大小 <span id="addRatioVal">1.0</span>×</label>
+                <input type="range" class="custom-range" id="addLogoRatio" min="0.5" max="1.3" step="0.05" value="1">
+              </div>
+            </div>
+
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input" id="addBadge" checked>
+              <label class="custom-control-label" for="addBadge">显示角落徽标</label>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center">
+              <button class="btn btn-brand mr-2" id="addGen" type="button">生成太阳码</button>
+              <button class="btn btn-ghost" id="addDl" type="button" disabled>下载</button>
+              <span class="small text-dim ml-auto" id="addState" role="status" aria-live="polite"></span>
+            </div>
+
+            <div class="thumb mt-3" id="addThumb"><span>生成结果</span></div>
+            <p class="thumb-cap" id="addHint">上传好友二维码后自动生成</p>
+            <div class="stats" id="addStats"></div>
+            <dl class="info-dl" id="addInfo"></dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. 接口 ============ -->
+  <section class="pane d-none" id="pane-api">
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="panel-head">
+          <h6 class="panel-title">接口文档与在线调试</h6>
+          <div class="ml-auto d-flex align-items-center">
+            <a class="btn btn-brand btn-sm mr-2" href="/api/docs.md" download="wxcode-api.md">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+              </svg>
+              下载 .md 文档
+            </a>
+            <a class="link-btn" href="/api/docs.md?inline=1" target="_blank" rel="noopener">在线预览</a>
+          </div>
+        </div>
+        <p class="panel-sub mb-0">
+          每个接口都带<b>请求参数</b>、<b>请求示例</b>、<b>响应字段</b>与<b>响应示例</b>（JSON 语法高亮 + 逐字段中文说明），
+          右侧 <b>TRY</b> 可以直接发请求。失败统一返回 <code>{"error":"原因"}</code> + 4xx 状态码。
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ POST /api/encode ============ -->
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/api/encode</span>
+          <span class="text-dim" style="font-size:.78rem">输入内容，返回葵花码图片（png / jpg / svg / gif）或 JSON</span>
+        </div>
+        <div class="code-wrap">
+          <div class="code-head">
+            <span class="d-flex align-items-center"><span class="dots"><i></i><i></i><i></i></span>curl</span>
+            <button class="btn-copy" data-copy="c-post">复制</button>
+          </div>
+          <pre class="code" id="c-post">curl -X POST {{BASE_URL}}/api/encode \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"https://example.com/","format":"png","size":600}' \
+  -o code.png
+
+<span class="c"># 把 format 换成 json，就能一次拿到 svg + pngBase64：
+# {"text":"https://example.com/","format":"json","version":0,"level":"Q",
+#  "levelIndex":2,"mask":14,"typebits":122236,"mode":"ALPHANUMERIC",
+#  "transformed":"5M +*-F/2IH%%Q53E9:/-IP","codewords":38,"ecCodewords":18,
+#  "size":600,"svg":"&lt;svg ...&gt;","pngBase64":"iVBORw0KGgo..."}</span></pre>
+        </div>
+
+        <div class="trybox" data-mode="encode-post">
+          <span class="try-tag">TRY</span>
+          <div class="form-row align-items-end">
+            <div class="col-12 col-md-5 mb-2">
+              <label class="field">text</label>
+              <input class="form-control form-control-sm" data-field="text" value="https://example.com/">
+            </div>
+            <div class="col-6 col-md-2 mb-2">
+              <label class="field">format</label>
+              <select class="custom-select custom-select-sm" data-field="format">
+                <option value="png" selected>png</option>
+                <option value="jpg">jpg</option>
+                <option value="svg">svg</option>
+                <option value="gif">gif</option>
+                <option value="json">json</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2 mb-2">
+              <label class="field">size</label>
+              <input class="form-control form-control-sm" data-field="size" value="600">
+            </div>
+            <div class="col-12 col-md-3 mb-2">
+              <button class="btn btn-brand btn-sm btn-block try-send" type="button">发送</button>
+            </div>
+          </div>
+          <div class="try-out" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="api-doc">
+          <div class="api-doc-title">请求参数（JSON body，或同名的表单/query 字段）</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>text</code></td><td>string</td><td>是</td><td>要编码的内容。接口上限 8192 字节；但一枚码只装几十字节：URL 字符集内约 ≤58 字符，含中文/符号走字节模式约 ≤44 字节。</td></tr>
+                <tr><td><code>format</code></td><td>string</td><td>否</td><td><code>png</code>（默认）/ <code>jpg</code> / <code>svg</code> / <code>gif</code> / <code>json</code>。</td></tr>
+                <tr><td><code>size</code></td><td>int</td><td>否</td><td>位图边长，120~2000，默认 600。对 svg 无效。</td></tr>
+                <tr><td><code>margin</code></td><td>int</td><td>否</td><td>位图四周白边像素，0~200，默认 0。</td></tr>
+                <tr><td><code>fg</code> / <code>bg</code></td><td>string</td><td>否</td><td>前景 / 背景色，<code>#rrggbb</code>，默认黑 / 白。</td></tr>
+                <tr><td><code>level</code></td><td>string</td><td>否</td><td>允许的<b>最低</b>纠错等级 <code>L</code>/<code>M</code>/<code>Q</code>/<code>H</code>，默认 L；容量够时会自动取更高等级。</td></tr>
+                <tr><td><code>version</code></td><td>string</td><td>否</td><td><code>auto</code>（默认，v0~v2 取最小可容纳）/ <code>0</code> / <code>1</code> / <code>2</code> 钉死版本。</td></tr>
+                <tr><td><code>mask</code></td><td>int</td><td>否</td><td><code>-1</code>（默认）自动在 32 种掩码里按评分取最优；0~31 可固定。</td></tr>
+                <tr><td><code>logo</code></td><td>string</td><td>否</td><td>中心 logo：<code>data:image/png;base64,...</code> / http(s) URL / 裸 base64 / 服务器本地路径。传 <b>GIF 动图</b>且 format=gif 时，逐帧替换中心图，得到动图。</td></tr>
+                <tr><td><code>logoRatio</code></td><td>float</td><td>否</td><td>logo 半径缩放，默认 1（半径 108/600）。&gt;1.12 开始压到数据格，靠纠错兜底。</td></tr>
+                <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL。</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="api-doc-title">返回（format = png / jpg / gif / svg）</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>返回</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>响应体</td><td>图片二进制，<code>Content-Type</code> 为 <code>image/png</code> / <code>image/jpeg</code> / <code>image/gif</code> / <code>image/svg+xml</code>。</td></tr>
+                <tr><td><code>X-WXCode-Version</code></td><td>实际使用的版本（0~2），例如 <code>0</code>。</td></tr>
+                <tr><td><code>X-WXCode-Level</code></td><td>实际纠错等级 <code>L</code>/<code>M</code>/<code>Q</code>/<code>H</code>。</td></tr>
+                <tr><td><code>X-WXCode-Mask</code></td><td>选中的掩码（0~31）。</td></tr>
+                <tr><td><code>X-WXCode-Typebits</code></td><td>18 位格式位常量。</td></tr>
+                <tr><td><code>X-WXCode-Mode</code></td><td><code>NUMERIC</code> / <code>ALPHANUMERIC</code> / <code>BYTE</code>。</td></tr>
+                <tr><td><code>X-WXCode-Codewords</code> 等</td><td>码字总数 / 数据码字 / 纠错码字数。</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="api-doc-title">返回（format = json）</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>字段</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>text</code> / <code>format</code></td><td>实际编码的内容；本次输出格式（固定 <code>json</code>）。</td></tr>
+                <tr><td><code>version</code> / <code>level</code> / <code>levelIndex</code> / <code>mask</code></td><td>版本（0~2）；实际纠错等级（字母）与下标（0=L、1=M、2=Q、3=H）；掩码（0~31）。</td></tr>
+                <tr><td><code>typebits</code> / <code>mode</code></td><td>18 位格式位；数据模式 <code>NUMERIC</code>/<code>ALPHANUMERIC</code>/<code>BYTE</code>。</td></tr>
+                <tr><td><code>transformed</code></td><td>仅 ALPHANUMERIC 出现：真正写进码里的变换文本。</td></tr>
+                <tr><td><code>codewords</code> / <code>ecCodewords</code></td><td>码字总数、其中的纠错码字数。</td></tr>
+                <tr><td><code>size</code></td><td>位图边长（像素），与请求一致。</td></tr>
+                <tr><td><code>svg</code> / <code>pngBase64</code></td><td>矢量 SVG 文本与 PNG 的 base64（不含 <code>data:</code> 前缀，一次拿全，前端好预览/下载）。</td></tr>
+                <tr><td><code>logoAnimated</code> / <code>logoFrames</code></td><td>仅 logo 是动图时出现：是否动图、共几帧。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ GET /api/encode ============ -->
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/api/encode</span>
+          <span class="text-dim" style="font-size:.78rem">同样的能力走 query，可直接放进 &lt;img src&gt;</span>
+        </div>
+        <div class="code-wrap">
+          <div class="code-head">
+            <span class="d-flex align-items-center"><span class="dots"><i></i><i></i><i></i></span>图片标签</span>
+            <button class="btn-copy" data-copy="c-get">复制</button>
+          </div>
+          <pre class="code" id="c-get">&lt;img src="{{BASE_URL}}/api/encode?text=https%3A%2F%2Fexample.com%2F&amp;format=png&amp;size=400"&gt;</pre>
+        </div>
+
+        <div class="trybox" data-mode="encode-get">
+          <span class="try-tag">TRY</span>
+          <div class="form-row align-items-end">
+            <div class="col-12 col-md-5 mb-2">
+              <label class="field">text</label>
+              <input class="form-control form-control-sm" data-field="text" value="https://example.com/">
+            </div>
+            <div class="col-6 col-md-2 mb-2">
+              <label class="field">format</label>
+              <select class="custom-select custom-select-sm" data-field="format">
+                <option value="png" selected>png</option>
+                <option value="jpg">jpg</option>
+                <option value="svg">svg</option>
+                <option value="gif">gif</option>
+                <option value="json">json</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2 mb-2">
+              <label class="field">size</label>
+              <input class="form-control form-control-sm" data-field="size" value="400">
+            </div>
+            <div class="col-12 col-md-3 mb-2">
+              <button class="btn btn-brand btn-sm btn-block try-send" type="button">发送</button>
+            </div>
+          </div>
+          <div class="try-out" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="api-doc">
+          <div class="api-doc-title">请求参数（URL query）</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>参数</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>text</code></td><td>必填，内容；记得 URL 编码（<code>https%3A%2F%2F...</code>）。</td></tr>
+                <tr><td><code>format</code> / <code>size</code> / <code>margin</code></td><td>同 POST。做 &lt;img&gt; 时最常用 <code>format=png&amp;size=400</code>。</td></tr>
+                <tr><td><code>fg</code> / <code>bg</code> / <code>level</code> / <code>version</code> / <code>mask</code></td><td>同 POST。</td></tr>
+                <tr><td><code>logo</code> / <code>logoRatio</code> / <code>badge</code></td><td>同 POST；query 里的 logo 建议用 http(s) URL 或已编码的 data URL。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="api-doc-title">返回</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>返回</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>响应体 + 响应头</td><td>与 POST 完全一致：图片二进制 + <code>X-WXCode-*</code> 头（<code>format=json</code> 时返回 JSON）。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ POST /api/decode ============ -->
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/api/decode</span>
+          <span class="text-dim" style="font-size:.78rem">上传太阳码图片，解出内容</span>
+        </div>
+        <div class="code-wrap">
+          <div class="code-head">
+            <span class="d-flex align-items-center"><span class="dots"><i></i><i></i><i></i></span>curl</span>
+            <button class="btn-copy" data-copy="c-dec">复制</button>
+          </div>
+          <pre class="code" id="c-dec">curl -X POST {{BASE_URL}}/api/decode \
+  -F 'file=@code.png'
+
+<span class="c"># 返回（字段含义见下方表格）
+# {"family":"WX_CODE","version":0,"ecLevel":"Q","mask":14,"typebits":122236,
+#  "mode":"ALPHANUMERIC","count":23,"qrText":"5M +*-F/2IH%%Q53E9:/-IP",
+#  "payload":"https://example.com/","corrections":0,
+#  "box":{"x":0.499,"y":0.499,"rx":0.507,"ry":0.507}}</span></pre>
+        </div>
+
+        <div class="trybox" data-mode="decode">
+          <span class="try-tag">TRY</span>
+          <div class="form-row align-items-end">
+            <div class="col-12 col-md-7 mb-2">
+              <label class="field">图片文件</label>
+              <div class="custom-file">
+                <input type="file" class="custom-file-input try-file" id="tryFile" accept="image/*">
+                <label class="custom-file-label" for="tryFile" id="tryFileLabel">选择图片…</label>
+              </div>
+            </div>
+            <div class="col-12 col-md-5 mb-2">
+              <button class="btn btn-brand btn-sm btn-block try-send" type="button">发送</button>
+            </div>
+          </div>
+          <div class="try-out" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="api-doc">
+          <div class="api-doc-title">请求参数（三种投喂方式，选一种）</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>参数</th><th>位置</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>file</code></td><td>multipart</td><td>表单文件字段，<code>-F 'file=@code.png'</code>；字段名也接受 <code>image</code>。</td></tr>
+                <tr><td>（原始二进制）</td><td>body</td><td><code>Content-Type: image/png</code>，body 就是图片字节。</td></tr>
+                <tr><td><code>image</code></td><td>JSON</td><td><code>{"image":"data:image/png;base64,..."}</code> 或 http(s) 链接。</td></tr>
+                <tr><td><code>url</code></td><td>query/JSON</td><td>给图片地址，服务端下载后解析（<b>仅公网</b>，内网/回环直接 403）；单张上限见后台「上传大小」，默认 24MB。</td></tr>
+                <tr><td><code>family</code></td><td>query</td><td>传 <code>auto</code> 时同一张图依次尝试太阳码和普通二维码；可用 <code>prefer=qr</code> 优先按二维码解析。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="api-doc-title">返回</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>字段</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>payload</code></td><td>解出的原始内容（逆变换后的链接/文本），业务只需要这个字段。</td></tr>
+                <tr><td><code>family</code> / <code>version</code> / <code>ecLevel</code></td><td>码型（<code>WX_CODE</code>；<code>family=auto</code> 时也可能是 <code>QR_CODE</code>）、版本、纠错等级。</td></tr>
+                <tr><td><code>mask</code> / <code>typebits</code></td><td>掩码与 18 位格式位（<code>QR_CODE</code> 没有 <code>typebits</code>）。</td></tr>
+                <tr><td><code>mode</code> / <code>count</code></td><td>数据模式与字符计数（<code>QR_CODE</code> 没有 <code>count</code>）。</td></tr>
+                <tr><td><code>qrText</code></td><td>ALPHANUMERIC 模式下码内承载的变换文本（调试用）。</td></tr>
+                <tr><td><code>corrections</code></td><td>RS 纠正掉的码字数，0 表示读得很干净。</td></tr>
+                <tr><td><code>box</code></td><td>码在图里的外接圆 <code>{x,y,rx,ry}</code>（0~1 归一化），定位失败时不返回；前端用它裁缩略图。</td></tr>
+                <tr><td><code>text</code> / <code>url</code> / <code>modules</code></td><td>仅 <code>QR_CODE</code> 出现：二维码文本、其中的链接、边长模块数（= 17+4×version）。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ POST /api/qr ============ -->
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/api/qr</span>
+          <span class="text-dim" style="font-size:.78rem">解析普通二维码（微信「加好友」名片），取出里面的链接</span>
+        </div>
+        <div class="code-wrap">
+          <div class="code-head">
+            <span class="d-flex align-items-center"><span class="dots"><i></i><i></i><i></i></span>curl</span>
+            <button class="btn-copy" data-copy="c-qr">复制</button>
+          </div>
+          <pre class="code" id="c-qr">curl -X POST {{BASE_URL}}/api/qr \
+  -F 'file=@friend.png'
+
+<span class="c"># 返回（JSON，字段含义见下方表格）
+# {
+#   "text": "https://u.wechat.com/xxxxxxxxxxxx",   ← 二维码里的完整文本
+#   "url":  "https://u.wechat.com/xxxxxxxxxxxx",   ← 其中的链接，可直接给 /api/encode
+#   "version": 4,                                  ← QR 版本 1~40
+#   "ecLevel": "M",                                ← 纠错等级 L/M/Q/H
+#   "mask": 3,                                     ← 掩码 0~7
+#   "mode": "BYTE",                                ← 数据模式
+#   "modules": 33,                                 ← 边长模块数 = 17 + 4 × version
+#   "corrections": 0                               ← RS 纠错修掉的码字数
+# }</span></pre>
+        </div>
+
+        <div class="trybox" data-mode="qr">
+          <span class="try-tag">TRY</span>
+          <div class="form-row align-items-end">
+            <div class="col-12 col-md-7 mb-2">
+              <label class="field">二维码图片</label>
+              <div class="custom-file">
+                <input type="file" class="custom-file-input try-file" id="tryQRFile" accept="image/*">
+                <label class="custom-file-label" for="tryQRFile" id="tryQRFileLabel">选择图片…</label>
+              </div>
+            </div>
+            <div class="col-12 col-md-5 mb-2">
+              <button class="btn btn-brand btn-sm btn-block try-send" type="button">发送</button>
+            </div>
+          </div>
+          <div class="try-out" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="api-doc">
+          <div class="api-doc-title">请求参数</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>参数</th><th>位置</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>file</code></td><td>multipart</td><td>二维码图片，字段名也接受 <code>image</code>。</td></tr>
+                <tr><td><code>image</code> / <code>url</code></td><td>JSON</td><td>data URL 或图片地址。</td></tr>
+                <tr><td>（原始二进制）</td><td>body</td><td>直接 POST 图片字节。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="api-doc-title">返回</div>
+          <div class="table-responsive">
+            <table class="table table-sm api-table mb-0">
+              <thead><tr><th>字段</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>text</code></td><td>二维码里的完整文本。</td></tr>
+                <tr><td><code>url</code></td><td>如果文本里有链接，单独挑出来（微信好友码即 <code>https://u.wechat.com/...</code>），可直接丢给 <code>/api/encode</code>。</td></tr>
+                <tr><td><code>version</code> / <code>ecLevel</code> / <code>mask</code></td><td>QR 版本（1~40）、纠错等级、掩码。</td></tr>
+                <tr><td><code>mode</code></td><td><code>BYTE</code> / <code>NUMERIC</code> / <code>ALPHANUMERIC</code>（含多段时为 <code>A+B</code>）。</td></tr>
+                <tr><td><code>modules</code></td><td>边长模块数（= 17+4×version）。</td></tr>
+                <tr><td><code>corrections</code></td><td>RS 纠正掉的码字数。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通用说明 -->
+    <div class="panel">
+      <div class="panel-body">
+        <div class="panel-head"><h6 class="panel-title">通用约定</h6></div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm api-table mb-0">
+            <thead><tr><th>项</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>鉴权</td><td>默认匿名可用；管理员可开启「使用需要登录」。程序调用建议在请求头带 <code>X-API-Key</code>，需登录时网页会携带会话 Cookie。</td></tr>
+              <tr><td>错误</td><td>4xx/5xx + <code>{"error":"原因"}</code>，例如容量不足会提示「载荷超出一枚葵花码容量」。</td></tr>
+              <tr><td>上传上限</td><td>图片 8MB（logo）/ 24MB（待解析图片），JSON 16MB。</td></tr>
+              <tr><td>跨域</td><td>图片响应已通过 <code>Access-Control-Expose-Headers</code> 暴露 <code>X-WXCode-*</code>。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Swagger 风格接口浏览器：JS 启用时替换旧的静态接口页；JS 关闭时旧页面仍可阅读 -->
+<template id="apiExplorerTpl">
+  <div class="api-explorer">
+    <div class="api-topbar panel">
+      <div class="api-topbar-copy">
+        <span class="api-kicker">API EXPLORER</span>
+        <h2>接口调试台</h2>
+        <p>左侧选择接口，右侧查看参数并直接发送请求。留空 Key 时使用当前浏览器登录会话。</p>
+      </div>
+      <div class="api-downloads">
+        <a class="btn btn-ghost btn-sm" href="/api/docs.md" download="wxcode-api.md">Markdown</a>
+        <a class="btn btn-ghost btn-sm" href="/api/postman.json">Postman</a>
+        <a class="btn btn-ghost btn-sm" href="/api/openapi.json" target="_blank" rel="noopener">OpenAPI</a>
+      </div>
+    </div>
+
+    <div class="api-authbar">
+      <label for="apiKeyAuth">API Key</label>
+      <input class="form-control form-control-sm" id="apiKeyAuth" type="password"
+             autocomplete="off" spellcheck="false" placeholder="可选：wx_...">
+      <button class="link-btn" id="apiKeyClear" type="button">清除</button>
+      <span class="api-authhint" id="apiAuthHint">留空则使用当前登录会话</span>
+    </div>
+
+    <div class="api-layout">
+      <aside class="api-side panel">
+        <div class="api-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+          </svg>
+          <input id="apiSearch" class="form-control form-control-sm" type="search"
+                 placeholder="搜索接口、路径或说明" aria-label="搜索接口" autocomplete="off">
+        </div>
+        <nav id="apiNav" class="api-nav" aria-label="接口目录">
+          <div class="api-loading">正在加载接口目录…</div>
+        </nav>
+        <div class="api-side-foot">
+          <span class="api-dot"></span>
+          <span>Try it 请求与页面同源，会自动携带登录 Cookie</span>
+        </div>
+      </aside>
+
+      <div class="api-stage" id="apiStage">
+        <div class="panel api-placeholder">
+          <div class="api-loading">正在加载 OpenAPI 文档…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // 每个异步工作流都有独立序号和取消控制器：只有最后一次请求能更新界面。
+  function createFlow() {
+    let seq = 0, controller = null;
+    return {
+      next() {
+        if (controller) controller.abort();
+        controller = new AbortController();
+        const id = ++seq;
+        return { signal: controller.signal, current: () => id === seq };
+      },
+      cancel() {
+        seq++;
+        if (controller) controller.abort();
+        controller = null;
+      }
+    };
+  }
+  function isStale(ticket, err) {
+    return !ticket.current() || (err && err.name === 'AbortError');
+  }
+  function blobExt(blob, fallback) {
+    const types = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/gif': 'gif' };
+    return types[(blob && blob.type || '').split(';')[0].toLowerCase()] || fallback || 'png';
+  }
+  function pickCamera(handler) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
+    input.onchange = () => { if (input.files[0]) handler(input.files[0]); };
+    input.click();
+  }
+  function onActivate(el, handler) {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handler();
+      }
+    });
+  }
+
+  /* ================= 提示：统一走弹层（不再依赖页面里的灰字） ================= */
+  function toast(msg, bad) { layer.msg(msg, { error: !!bad }); }
+  // 解码失败常伴随底层报错（png: invalid format / Reed-Solomon ...），
+  // 对普通访客没意义，弹窗里给一句能操作的提示，原始错误留在结果区。
+  function decodeErrorText(msg) {
+    if (/无法解析图片|invalid format|未通过|Reed|未找到|no qr/i.test(msg || '')) {
+      return '没有识别到太阳码。\n请确认图片清晰、完整（不要裁掉码的边角），再换一张试试。';
+    }
+    return msg || '识别失败，请稍后重试';
+  }
+  // 需要登录：弹窗里直接给一个「去登录」，登录完回跳当前分栏
+  async function askLogin(tab, action) {
+    const ok = await layer.confirm('该功能已开启「使用需要登录」，登录后即可' + action + '。', {
+      title: '需要登录', okText: '去登录', cancelText: '稍后'
+    });
+    if (ok) location.href = '/login?next=' + encodeURIComponent('/#' + tab);
+  }
+
+  /* ================= 主题：只留太阳 / 月亮图标 ================= */
+  const themeKey = 'wxcode-theme';
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.querySelector('meta[name=theme-color]').setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+  }
+  try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch (e) { applyTheme('light'); }
+  function toggleTheme() {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(themeKey, next); } catch (e) {}
+  }
+  $('#themeBtn').onclick = toggleTheme;
+  $('#themeBtnSm').onclick = toggleTheme;
+
+  /* ================= 导航 / 分栏 ================= */
+  const TABS = ['gen', 'dec', 'add', 'api'];
+  const navMobile = $('#navMobile');
+  let currentTab = 'gen';
+  function showTab(name) {
+    if (TABS.indexOf(name) < 0) name = 'gen';
+    currentTab = name;
+    TABS.forEach(t => {
+      $('#pane-' + t).classList.toggle('d-none', t !== name);
+      $$('[data-tab="' + t + '"]').forEach(a => {
+        const active = t === name;
+        a.classList.toggle('active', active);
+        if (active) a.setAttribute('aria-current', 'page');
+        else a.removeAttribute('aria-current');
+      });
+    });
+    navMobile.style.display = 'none';
+    $('#navToggle').setAttribute('aria-expanded', 'false');
+    if (name === 'api') initAPIExplorer();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  $$('[data-tab]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = a.getAttribute('data-tab');
+    showTab(t);
+    history.replaceState(null, '', t === 'gen' ? location.pathname : '#' + t);
+  }));
+  $('#navToggle').onclick = () => {
+    const open = navMobile.style.display === 'none';
+    navMobile.style.display = open ? 'block' : 'none';
+    $('#navToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+
+  /* ================= 生成 ================= */
+  let fmt = 'png';
+  let logoDataURL = '';
+  let logoAnimated = false;
+  let lastBlob = null;
+  let lastMeta = null;
+  let lastFormat = 'png';
+  let previewURL = '';
+  const genFlow = createFlow();
+
+  const fmtButtons = $$('#fmtGroup [data-fmt]');
+  function setFormat(next, lock) {
+    fmt = next;
+    fmtButtons.forEach(b => {
+      const isGif = b.getAttribute('data-fmt') === 'gif';
+      const active = b.getAttribute('data-fmt') === next;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+      b.disabled = !!lock && !isGif;
+    });
+    $('#fmtHint').textContent = lock
+      ? '动图 logo 已锁定 GIF 输出，中间 logo 会跟着动'
+      : 'GIF 动图 logo 只能输出 GIF';
+  }
+  fmtButtons.forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.disabled) return;
+      setFormat(b.getAttribute('data-fmt'), false);
+      generate(null, { silent: true });
+    });
+  });
+
+  const logoFile = $('#logoFile');
+  const logoThumb = $('#logoThumb');
+  $('#btnPickLogo').onclick = () => logoFile.click();
+
+  // 数 GIF 帧：遍历 Graphic Control Extension (21 F9 04)
+  function gifFrameCount(buf) {
+    const b = new Uint8Array(buf);
+    let n = 0;
+    for (let i = 0; i + 2 < b.length; i++) {
+      if (b[i] === 0x21 && b[i + 1] === 0xF9 && b[i + 2] === 0x04) n++;
+    }
+    return n;
+  }
+
+  /* ---------- 预设 LOGO（管理员在后台维护，两个生成入口共用） ---------- */
+  let presetLogos = null; // null = 还没拉过列表
+  async function presetList() {
+    if (presetLogos) return presetLogos;
+    let items = [];
+    try {
+      const r = await fetch('/api/preset-logos');
+      if (r.ok) { const d = await r.json(); items = d.items || []; }
+    } catch (e) { items = []; }
+    presetLogos = items;
+    return items;
+  }
+
+  // presetFile 把预设图取回来包成 File：后面的流程与「本地上传」完全一致
+  // （GIF 帧数判断、动图锁 GIF 输出、立即重绘都复用同一套）
+  async function presetFile(id, p) {
+    const r = await fetch('/api/preset-logos/' + id);
+    if (!r.ok) throw new Error('预设 LOGO 加载失败，刷新页面再试');
+    const blob = await r.blob();
+    const ext = blob.type === 'image/gif' ? '.gif' : (blob.type === 'image/jpeg' ? '.jpg' : '.png');
+    return new File([blob], (p ? p.name : 'preset') + ext, { type: blob.type });
+  }
+
+  // mountPresetPicker 给一组「用预设按钮 + 缩略图条」接线：
+  // 没有预设时按钮一直藏着，不占地方也不误导用户。
+  function mountPresetPicker(btn, strip, onPick) {
+    if (!btn || !strip) return;
+    btn.onclick = async () => {
+      const items = await presetList();
+      if (!items.length) { toast('管理员还没有设置预设 LOGO', true); return; }
+      if (strip.hidden) {
+        strip.innerHTML = items.map(p =>
+          '<button type="button" class="preset-logo" data-preset="' + p.id + '" title="' + esc(p.name) + '">' +
+            '<img src="/api/preset-logos/' + p.id + '" alt="' + esc(p.name) + '" loading="lazy">' +
+            '<span>' + esc(p.name) + '</span>' +
+          '</button>').join('');
+      }
+      strip.hidden = !strip.hidden;
+      btn.setAttribute('aria-expanded', strip.hidden ? 'false' : 'true');
+    };
+    strip.onclick = async ev => {
+      const b = ev.target.closest('[data-preset]');
+      if (!b || b.disabled) return;
+      const id = parseInt(b.dataset.preset, 10);
+      const p = (presetLogos || []).filter(x => x.id === id)[0];
+      b.disabled = true;
+      try {
+        const f = await presetFile(id, p);
+        strip.querySelectorAll('.preset-logo').forEach(x => x.classList.toggle('active', x === b));
+        onPick(f);
+      } catch (e) {
+        toast(e.message, true);
+      } finally {
+        b.disabled = false;
+      }
+    };
+    presetList().then(items => { if (items.length) btn.classList.remove('d-none'); });
+  }
+
+  // applyLogo 把选中的图片装进中心 logo：文件选择与预设走同一条路
+  function applyLogo(f) {
+    const isGif = /gif$/i.test(f.type) || /\.gif$/i.test(f.name);
+    const fr = new FileReader();
+    fr.onload = () => {
+      logoDataURL = fr.result;
+      logoThumb.src = logoDataURL;
+      logoThumb.classList.remove('d-none');
+      $('#btnLogoClear').classList.remove('d-none');
+
+      const finish = frames => {
+        logoAnimated = isGif && frames > 1;
+        if (logoAnimated) {
+          setFormat('gif', true);
+          $('#logoHint').innerHTML = '<b>' + esc(f.name) + '</b> · 动图 ' + frames + ' 帧，已自动切换为 GIF 输出';
+        } else {
+          setFormat(fmt, false);
+          $('#logoHint').innerHTML = '<b>' + esc(f.name) + '</b> · ' +
+            Math.max(1, Math.round(f.size / 1024)) + 'KB' + (isGif ? '（单帧 GIF）' : '');
+        }
+        generate(null, { silent: true });
+      };
+
+      if (isGif) {
+        const fr2 = new FileReader();
+        fr2.onload = () => finish(gifFrameCount(fr2.result));
+        fr2.readAsArrayBuffer(f);
+      } else {
+        finish(1);
+      }
+    };
+    fr.readAsDataURL(f);
+  }
+
+  logoFile.addEventListener('change', () => {
+    const f = logoFile.files[0];
+    if (f) applyLogo(f);
+  });
+  mountPresetPicker($('#btnPresetLogo'), $('#presetStrip'), applyLogo);
+
+  $('#btnLogoClear').onclick = () => {
+    logoDataURL = '';
+    logoAnimated = false;
+    logoFile.value = '';
+    logoThumb.classList.add('d-none');
+    $('#btnLogoClear').classList.add('d-none');
+    $('#logoHint').textContent = '建议正方形、透明背景；动图会自动保留动画';
+    setFormat(fmt === 'gif' ? 'png' : fmt, false);
+    generate(null, { silent: true });
+  };
+  $('#logoRatio').addEventListener('input', e => { $('#ratioVal').textContent = e.target.value; });
+  $('#logoRatio').addEventListener('change', () => generate(null, { silent: true }));
+
+  let wmCanConfig = false, wmDefaultsApplied = false;
+
+  function body() {
+    const req = {
+      text: $('#text').value.trim(),
+      format: fmt,
+      size: parseInt($('#size').value, 10) || 600,
+      margin: parseInt($('#margin').value, 10) || 0,
+      level: $('#level').value,
+      version: $('#version').value,
+      fg: $('#fg').value,
+      bg: $('#bg').value,
+      logo: logoDataURL,
+      logoRatio: parseFloat($('#logoRatio').value) || 1,
+      badge: $('#badgeOn').checked ? '' : 'none'
+    };
+    // 水印：只有「当前身份可配置」时才发参数；不发则由服务端按全局配置兜底
+    // （none/admin 模式服务端会忽略参数，user 模式未登录也不会加水印）。
+    if (wmCanConfig && !$('#wmBlock').hidden) {
+      const on = $('#wmOn').checked;
+      req.watermark = on;
+      const text = $('#wmText').value.trim();
+      if (on && text) {
+        req.watermarkText = text;
+        req.watermarkSize = parseInt($('#wmSize').value, 10) || 20;
+        req.watermarkColor = $('#wmColor').value;
+        req.watermarkOpacity = parseInt($('#wmOpacity').value, 10);
+        req.watermarkPosition = $('#wmPosition').value;
+      }
+      wmSaveCache(); // 生成前顺手记住，避免用户没触发 change 就刷新页面
+    }
+    return req;
+  }
+
+  function renderStats(el, items) {
+    el.innerHTML = items.map(i =>
+      '<div class="stat"><span class="k">' + esc(i[0]) + '</span>' +
+      '<span class="v" title="' + esc(i[1]) + '">' + esc(i[1]) + '</span></div>'
+    ).join('');
+  }
+  function renderInfo(el, rows) {
+    el.innerHTML = rows.map(r =>
+      '<dt>' + esc(r[0]) + '</dt><dd class="' + (r[2] || '') + '">' + r[1] + '</dd>'
+    ).join('');
+  }
+
+  const textEl = $('#text');
+  function updateLen() {
+    const t = textEl.value;
+    textEl.dataset.len = t ? (t.length + ' 字') : '';
+    const bytes = new TextEncoder().encode(t).length;
+    $('#lenHint').textContent = t ? (t.length + ' 字 / ' + bytes + ' 字节') : '';
+  }
+  textEl.addEventListener('input', updateLen);
+  updateLen();
+
+  async function generate(override, opts) {
+    opts = opts || {};
+    const ticket = genFlow.next();
+    const req = body();
+    if (override && override.text) req.text = override.text;
+    if (!req.text) {
+      lastBlob = null;
+      if (previewURL) { URL.revokeObjectURL(previewURL); previewURL = ''; }
+      $('#thumb').innerHTML = '<span>结果图</span>';
+      $('#btnPng').disabled = true;
+      $('#genState').textContent = '';
+      $('#thumbHint').textContent = '输入内容后点击「生成」，这里会显示预览';
+      renderStats($('#encStats'), []);
+      renderInfo($('#encInfo'), []);
+      if (!opts.silent) toast('请先输入内容', true);
+      return null;
+    }
+    $('#genState').textContent = '生成中…';
+    try {
+      const t0 = performance.now();
+      const resp = await fetch('/api/encode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+        signal: ticket.signal
+      });
+      if (!ticket.current()) return null;
+      if (!resp.ok) {
+        let data = {};
+        try { data = await resp.json(); } catch (e) {}
+        if (!ticket.current()) return null;
+        if (data.needLogin) {
+          $('#genState').textContent = '';
+          renderStats($('#encStats'), []);
+          renderInfo($('#encInfo'), []);
+          refreshAccount();
+          if (!opts.silent) askLogin('gen', '生成');
+          return null;
+        }
+        throw new Error(data.error || ('HTTP ' + resp.status));
+      }
+      const blob = await resp.blob();
+      if (!ticket.current()) return null;
+      refreshAccount();
+      const ms = Math.round(performance.now() - t0);
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      previewURL = URL.createObjectURL(blob);
+      lastBlob = blob;
+      lastFormat = blobExt(blob, req.format);
+      $('#thumb').innerHTML = '<img alt="生成的太阳码" src="' + previewURL + '">';
+      $('#btnPng').disabled = false;
+
+      const h = resp.headers;
+      lastMeta = {
+        version: h.get('X-WXCode-Version'),
+        level: h.get('X-WXCode-Level'),
+        mask: h.get('X-WXCode-Mask'),
+        typebits: h.get('X-WXCode-Typebits'),
+        mode: h.get('X-WXCode-Mode'),
+        cw: h.get('X-WXCode-Codewords'),
+        ec: h.get('X-WXCode-ECCodewords'),
+        data: h.get('X-WXCode-DataCodewords')
+      };
+      renderStats($('#encStats'), [
+        ['版本 / 纠错', 'v' + lastMeta.version + ' / ' + lastMeta.level],
+        ['掩码', String(lastMeta.mask)],
+        ['模式', lastMeta.mode || '—']
+      ]);
+      renderInfo($('#encInfo'), [
+        ['typebits', lastMeta.typebits || ''],
+        ['码字', lastMeta.cw + '（数据 ' + lastMeta.data + ' + 纠错 ' + lastMeta.ec + '）'],
+        ['内容', esc(req.text), 'ok'],
+        ['文件', blob.type.replace('image/', '').toUpperCase() + ' · ' +
+          (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
+      ]);
+      $('#thumbHint').textContent = (logoAnimated && lastFormat === 'gif')
+        ? 'GIF 动图：中间 logo 与码图一起播放'
+        : '预览为等比缩放，下载得到原尺寸';
+      $('#genState').textContent = '';
+      if (!opts.silent) toast('生成成功 · v' + lastMeta.version + '/' + lastMeta.level + ' · ' + ms + 'ms');
+      return lastBlob;
+    } catch (e) {
+      if (isStale(ticket, e)) return null;
+      lastBlob = null;
+      if (previewURL) { URL.revokeObjectURL(previewURL); previewURL = ''; }
+      $('#thumb').innerHTML = '<span>结果图</span>';
+      $('#btnPng').disabled = true;
+      $('#genState').textContent = '';
+      renderStats($('#encStats'), []);
+      renderInfo($('#encInfo'), []);
+      if (!opts.silent) toast(e.message, true);
+      return null;
+    }
+  }
+
+  // 显式点击才弹成功提示；参数联动（改尺寸/颜色等）静默刷新，避免一直弹窗
+  $('#btnGen').onclick = () => generate(null, {});
+  $('#btnPng').onclick = () => {
+    if (!lastBlob) return generate(null, {});
+    const a = document.createElement('a');
+    const name = 'wxcode-v' + (lastMeta ? lastMeta.version : '0') + (lastMeta ? lastMeta.level : '') +
+      '-m' + (lastMeta ? lastMeta.mask : '0') + '.' + lastFormat;
+    a.href = previewURL;
+    a.download = name;
+    a.click();
+  };
+  ['size', 'margin', 'level', 'version', 'fg', 'bg', 'badgeOn',
+    'wmOn', 'wmText', 'wmSize', 'wmColor', 'wmOpacity', 'wmPosition'].forEach(id => {
+    const el = $('#' + id);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      if (id === 'wmOn') {
+        const on = $('#wmOn').checked;
+        // 关掉开关只收起面板，按钮仍保留，方便下次展开继续配置
+        wmToggleVisible(wmCanConfig);
+        if (!on) wmSetExpanded(false);
+      }
+      if (id === 'wmOn' || id.indexOf('wm') === 0) wmSaveCache();
+      generate(null, { silent: true });
+    });
+  });
+  textEl.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generate(null, {});
+  });
+
+  /* ================= 解码 ================= */
+  let decPayload = '';   // 最近一次解出的内容，供复制 / 回填生成
+  let decPreviewURL = '';
+  const decFlow = createFlow();
+  const drop = $('#drop');
+  const openDecodePicker = () => $('#file').click();
+  drop.onclick = openDecodePicker;
+  onActivate(drop, openDecodePicker);
+  $('#btnCamera').onclick = () => pickCamera(decodeBlob);
+  $('#file').onchange = e => { if (e.target.files[0]) decodeBlob(e.target.files[0]); };
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.add('hot');
+  }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.remove('hot');
+  }));
+  drop.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) decodeBlob(f);
+  });
+
+  // 统一发图：返回 {resp, data, ms}
+  async function postImage(path, blob, signal) {
+    const t0 = performance.now();
+    const resp = await fetch(path, { method: 'POST', body: blob, signal: signal });
+    const ms = Math.round(performance.now() - t0);
+    let data = {};
+    try { data = await resp.json(); } catch (e) {}
+    if (resp.status === 401 && data.needLogin) {
+      const e = new Error(data.error || '需要登录');
+      e.needLogin = true;
+      throw e;
+    }
+    return { resp, data, ms };
+  }
+
+  /* 上传的图可能是整屏截图（1080×2400），直接等比塞进方框里码只剩几十像素，
+     看着就是个"空盒子"。服务端解出码后会带回 box（归一化圆心/半径），
+     这里按它裁一个正方形预览。 */
+  function loadImage(url) {
+    return new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => rej(new Error('图片加载失败'));
+      im.src = url;
+    });
+  }
+
+  async function cropToBox(url, box) {
+    if (!box || !(box.rx > 0)) return '';
+    const im = await loadImage(url);
+    const W = im.naturalWidth, H = im.naturalHeight;
+    const side = Math.max(box.rx * W, box.ry * H) * 2;
+    if (!(side > 0)) return '';
+    const S = 320;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, S, S);
+    // 源矩形越界时浏览器留白，先铺白底就是为了这个
+    ctx.drawImage(im,
+      box.x * W - side / 2, box.y * H - side / 2, side, side,
+      0, 0, S, S);
+    return c.toDataURL('image/png');
+  }
+
+  async function decodeBlob(blob) {
+    const ticket = decFlow.next();
+    $('#decEmpty').classList.add('d-none');
+    $('#decResult').classList.remove('d-none');
+    renderStats($('#decStats'), []);
+    renderInfo($('#decInfo'), [['状态', '解析中…']]);
+    decPayload = '';
+    $('#decPayload').textContent = '解析中…';
+    if (decPreviewURL) URL.revokeObjectURL(decPreviewURL);
+    decPreviewURL = URL.createObjectURL(blob);
+    const objURL = decPreviewURL;
+    $('#decImg').src = objURL;
+    try {
+      // 服务端一次取图、一次解码，按太阳码 → 普通二维码自动互补识别。
+      const r = await postImage('/api/decode?family=auto', blob, ticket.signal);
+      if (!ticket.current()) return;
+      if (!r.resp.ok) throw new Error(r.data.error || ('HTTP ' + r.resp.status));
+      const data = r.data;
+      const isQR = data.family === 'QR_CODE' || data.modules > 0;
+      decPayload = data.payload || data.url || data.text || '';
+      $('#decPayload').textContent = decPayload || '（空内容）';
+      if (data.box) {
+        cropToBox(objURL, data.box)
+          .then(u => {
+            if (u && ticket.current()) {
+              $('#decImg').src = u;
+              if (decPreviewURL === objURL) {
+                URL.revokeObjectURL(objURL);
+                decPreviewURL = '';
+              }
+            }
+          })
+          .catch(() => {});
+      }
+      renderStats($('#decStats'), [
+        ['码型', isQR ? 'QR_CODE' : data.family],
+        ['版本 / 纠错', 'v' + data.version + ' / ' + data.ecLevel],
+        ['掩码', String(data.mask)]
+      ]);
+      if (isQR) {
+        renderInfo($('#decInfo'), [
+          ['模式', data.mode + ' · ' + data.modules + '×' + data.modules + ' 模块'],
+          ['纠错', data.corrections + ' 个码字 · ' + r.ms + 'ms'],
+          ['说明', '普通二维码（非太阳码）']
+        ]);
+      } else {
+        renderInfo($('#decInfo'), [
+          ['模式', data.mode + ' · 计数 ' + data.count],
+          ['typebits', String(data.typebits)],
+          ['QR 内文本', data.qrText ? esc(data.qrText) : '—'],
+          ['纠错', data.corrections + ' 个码字 · ' + r.ms + 'ms']
+        ]);
+      }
+      toast('识别成功：' + (isQR ? '普通二维码' : '太阳码') + ' v' + data.version + '/' + data.ecLevel);
+    } catch (e) {
+      if (isStale(ticket, e)) return;
+      decPayload = '';
+      $('#decPayload').textContent = '—';
+      renderStats($('#decStats'), []);
+      renderInfo($('#decInfo'), []);
+      $('#decResult').classList.add('d-none');
+      $('#decEmpty').classList.remove('d-none');
+      if (e.needLogin) {
+        refreshAccount();
+        askLogin('dec', '解析');
+      } else {
+        layer.alert(decodeErrorText(e.message), { title: '识别失败', icon: 2, okText: '知道了' });
+      }
+    }
+  }
+
+  // 复制文本：优先 Clipboard API，非安全上下文（局域网 http）回退到隐藏 textarea。
+  function copyText(text) {
+    if (!text) return Promise.reject(new Error('没有可复制的内容'));
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise((res, rej) => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      ok ? res() : rej(new Error('浏览器不允许自动复制，请手动选中内容'));
+    });
+  }
+
+  function flashCopied(btn, hint) {
+    const old = btn.textContent;
+    btn.textContent = '已复制';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1400);
+    if (hint) {
+      hint.textContent = '已复制 ' + decPayload.length + ' 个字符';
+      setTimeout(() => { hint.textContent = ''; }, 1800);
+    }
+  }
+
+  async function doCopy(btn) {
+    const hint = $('#decActionHint');
+    try {
+      await copyText(decPayload);
+      flashCopied(btn, hint);
+    } catch (e) {
+      hint.textContent = e.message;
+      setTimeout(() => { hint.textContent = ''; }, 2600);
+    }
+  }
+  $('#decCopy').onclick = e => doCopy(e.currentTarget);
+  $('#decCopy2').onclick = e => doCopy(e.currentTarget);
+
+  // 一键把解出的内容带到「生成」栏并立即出码
+  $('#decToGen').onclick = () => {
+    if (!decPayload) {
+      $('#decActionHint').textContent = '还没有解出内容';
+      return;
+    }
+    textEl.value = decPayload;
+    updateLen();
+    showTab('gen');
+    history.replaceState(null, '', location.pathname);
+    generate();
+  };
+  $('#btnDemo').onclick = async () => {
+    if (!lastBlob) await generate(null, { silent: true });
+    if (lastBlob) decodeBlob(lastBlob);
+  };
+
+  /* ================= 加好友：解析微信二维码 → 生成太阳码 ================= */
+  let addFmt = 'png';
+  let addLogoURL = '';
+  let addBlob = null;
+  let addPreviewURL = '';
+  let addMeta = null;
+  let addFormat = 'png';
+  const addDecodeFlow = createFlow();
+  const addGenerateFlow = createFlow();
+
+  const addURLEl = $('#addURL');
+  const addFileEl = $('#addFile');
+  const addLogoEl = $('#addLogoFile');
+  const addDlBtn = $('#addDl');
+
+  function addSetFmt(next, lock) {
+    addFmt = next;
+    $$('#addFmtGroup [data-fmt]').forEach(b => {
+      const isGif = b.getAttribute('data-fmt') === 'gif';
+      const active = b.getAttribute('data-fmt') === next;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+      b.disabled = !!lock && !isGif;
+    });
+  }
+  $$('#addFmtGroup [data-fmt]').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.disabled) return;
+      addSetFmt(b.getAttribute('data-fmt'), false);
+      addGenerate({ silent: true });
+    });
+  });
+
+  const addDropEl = $('#addDrop');
+  const openAddPicker = () => addFileEl.click();
+  addDropEl.onclick = openAddPicker;
+  onActivate(addDropEl, openAddPicker);
+  $('#addCamera').onclick = () => pickCamera(addDecode);
+  addFileEl.onchange = e => { if (e.target.files[0]) addDecode(e.target.files[0]); };
+  ['dragover', 'dragenter'].forEach(ev => addDropEl.addEventListener(ev, e => {
+    e.preventDefault(); addDropEl.classList.add('hot');
+  }));
+  ['dragleave', 'drop'].forEach(ev => addDropEl.addEventListener(ev, e => {
+    e.preventDefault(); addDropEl.classList.remove('hot');
+  }));
+  addDropEl.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) addDecode(f);
+  });
+
+  async function addDecode(blob) {
+    const ticket = addDecodeFlow.next();
+    $('#addQRInfo').textContent = '正在解析二维码…';
+    try {
+      // 好友码优先按 QR 解，失败后同一次请求内回退到太阳码，避免重复上传。
+      const r = await postImage('/api/decode?family=auto&prefer=qr', blob, ticket.signal);
+      if (!ticket.current()) return;
+      if (!r.resp.ok) throw new Error(r.data.error || ('HTTP ' + r.resp.status));
+      const data = r.data;
+      const isQR = data.family === 'QR_CODE' || data.modules > 0;
+      const link = data.url || data.payload || data.text || '';
+      addURLEl.value = link;
+      if (isQR) {
+        $('#addQRInfo').innerHTML = '已解出：QR v' + data.version + ' / ' + data.ecLevel +
+          ' · ' + data.mode + ' · ' + data.modules + '×' + data.modules + ' 模块' +
+          (data.corrections ? ' · 修正 ' + data.corrections + ' 处' : '');
+        toast('识别成功：好友二维码 v' + data.version + '/' + data.ecLevel);
+      } else {
+        $('#addQRInfo').innerHTML = '已解出（太阳码）：v' + data.version + ' / ' + data.ecLevel +
+          ' · ' + data.mode + (data.corrections ? ' · 修正 ' + data.corrections + ' 处' : '');
+        toast('识别成功：太阳码 v' + data.version + '/' + data.ecLevel);
+      }
+      addGenerate({ silent: true });
+    } catch (e) {
+      if (isStale(ticket, e)) return;
+      if (e.needLogin) {
+        $('#addQRInfo').textContent = '';
+        refreshAccount();
+        askLogin('add', '解析');
+      } else {
+        $('#addQRInfo').textContent = '';
+        layer.alert(decodeErrorText(e.message), { title: '识别失败', icon: 2, okText: '知道了' });
+      }
+    }
+  }
+
+  async function addGenerate(opts) {
+    opts = opts || {};
+    const ticket = addGenerateFlow.next();
+    const link = addURLEl.value.trim();
+    if (!link) {
+      addBlob = null;
+      if (addPreviewURL) { URL.revokeObjectURL(addPreviewURL); addPreviewURL = ''; }
+      $('#addThumb').innerHTML = '<span>生成结果</span>';
+      $('#addStats').innerHTML = '';
+      $('#addHint').textContent = '上传好友二维码后自动生成';
+      renderInfo($('#addInfo'), []);
+      addDlBtn.disabled = true;
+      if (!opts.silent) toast('先上传好友二维码，或直接填链接', true);
+      return null;
+    }
+    $('#addState').textContent = '生成中…';
+    try {
+      const t0 = performance.now();
+      const resp = await fetch('/api/encode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: link,
+          format: addFmt,
+          size: parseInt($('#addSize').value, 10) || 600,
+          level: $('#addLevel').value,
+          logo: addLogoURL,
+          logoRatio: parseFloat($('#addLogoRatio').value) || 1,
+          badge: $('#addBadge').checked ? '' : 'none'
+        }),
+        signal: ticket.signal
+      });
+      if (!ticket.current()) return null;
+      if (!resp.ok) {
+        let data = {};
+        try { data = await resp.json(); } catch (e) {}
+        if (!ticket.current()) return null;
+        if (data.needLogin) {
+          $('#addState').textContent = '';
+          $('#addQRInfo').textContent = '';
+          refreshAccount();
+          if (!opts.silent) askLogin('add', '生成');
+          return null;
+        }
+        throw new Error(data.error || ('HTTP ' + resp.status));
+      }
+      const blob = await resp.blob();
+      if (!ticket.current()) return null;
+      refreshAccount();
+      const ms = Math.round(performance.now() - t0);
+      if (addPreviewURL) URL.revokeObjectURL(addPreviewURL);
+      addPreviewURL = URL.createObjectURL(blob);
+      addBlob = blob;
+      addFormat = blobExt(blob, addFmt);
+      $('#addThumb').innerHTML = '<img alt="好友太阳码" src="' + addPreviewURL + '">';
+      addDlBtn.disabled = false;
+      const h = resp.headers;
+      addMeta = {
+        version: h.get('X-WXCode-Version'),
+        level: h.get('X-WXCode-Level'),
+        mask: h.get('X-WXCode-Mask'),
+        mode: h.get('X-WXCode-Mode'),
+        cw: h.get('X-WXCode-Codewords'),
+        data: h.get('X-WXCode-DataCodewords'),
+        ec: h.get('X-WXCode-ECCodewords')
+      };
+      renderStats($('#addStats'), [
+        ['版本 / 纠错', 'v' + addMeta.version + ' / ' + addMeta.level],
+        ['掩码', String(addMeta.mask)],
+        ['模式', addMeta.mode || '—']
+      ]);
+      renderInfo($('#addInfo'), [
+        ['内容', esc(link), 'ok'],
+        ['码字', addMeta.cw + '（数据 ' + addMeta.data + ' + 纠错 ' + addMeta.ec + '）'],
+        ['文件', blob.type.replace('image/', '').toUpperCase() + ' · ' +
+          (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
+      ]);
+      $('#addState').textContent = '';
+      $('#addHint').textContent = '预览为等比缩放，下载得到原尺寸';
+      if (!opts.silent) toast('生成成功 · v' + addMeta.version + '/' + addMeta.level + ' · ' + ms + 'ms');
+      return addBlob;
+    } catch (e) {
+      if (isStale(ticket, e)) return null;
+      addBlob = null;
+      if (addPreviewURL) { URL.revokeObjectURL(addPreviewURL); addPreviewURL = ''; }
+      $('#addThumb').innerHTML = '<span>生成结果</span>';
+      $('#addState').textContent = '';
+      renderStats($('#addStats'), []);
+      renderInfo($('#addInfo'), []);
+      addDlBtn.disabled = true;
+      if (!opts.silent) toast(e.message, true);
+      return null;
+    }
+  }
+
+  $('#addGen').onclick = () => addGenerate({});
+  addURLEl.addEventListener('keydown', e => { if (e.key === 'Enter') addGenerate({}); });
+  addURLEl.addEventListener('change', () => addGenerate({ silent: true }));
+  ['addSize', 'addLevel', 'addBadge'].forEach(id => $('#' + id).addEventListener('change', () => addGenerate({ silent: true })));
+  $('#addLogoRatio').addEventListener('input', e => { $('#addRatioVal').textContent = e.target.value; });
+  $('#addLogoRatio').addEventListener('change', () => addGenerate({ silent: true }));
+
+  $('#addPickLogo').onclick = () => addLogoEl.click();
+  // 好友码入口的 logo：选文件与「用预设」共用同一条装配逻辑
+  function addApplyLogo(f) {
+    const isGif = /gif$/i.test(f.type) || /\.gif$/i.test(f.name);
+    const fr = new FileReader();
+    fr.onload = () => {
+      addLogoURL = fr.result;
+      $('#addLogoThumb').src = addLogoURL;
+      $('#addLogoThumb').classList.remove('d-none');
+      $('#addLogoClear').classList.remove('d-none');
+      const done = frames => {
+        const animated = isGif && frames > 1;
+        if (animated) addSetFmt('gif', true);
+        else addSetFmt(addFmt, false);
+        addGenerate({ silent: true });
+      };
+      if (isGif) {
+        const fr2 = new FileReader();
+        fr2.onload = () => done(gifFrameCount(fr2.result));
+        fr2.readAsArrayBuffer(f);
+      } else done(1);
+    };
+    fr.readAsDataURL(f);
+  }
+  addLogoEl.addEventListener('change', () => {
+    const f = addLogoEl.files[0];
+    if (f) addApplyLogo(f);
+  });
+  mountPresetPicker($('#addPresetLogo'), $('#addPresetStrip'), addApplyLogo);
+  $('#addLogoClear').onclick = () => {
+    addLogoURL = '';
+    addLogoEl.value = '';
+    $('#addLogoThumb').classList.add('d-none');
+    $('#addLogoClear').classList.add('d-none');
+    addSetFmt(addFmt === 'gif' ? 'png' : addFmt, false);
+    addGenerate({ silent: true });
+  };
+  $('#addDl').onclick = () => {
+    if (!addBlob || !addPreviewURL) return;
+    const a = document.createElement('a');
+    a.href = addPreviewURL;
+    a.download = 'wxcode-addfriend-v' + (addMeta ? addMeta.version : '0') +
+      (addMeta ? addMeta.level : '') + '.' + addFormat;
+    a.click();
+  };
+
+  /* ================= 接口浏览器（Swagger 风格） ================= */
+  let apiSpec = null;
+  let apiOps = [];
+  let apiSelected = '';
+  let apiLoading = false;
+  let apiLoaded = false;
+
+  const apiMethodClass = m => 'method-' + String(m || '').toLowerCase();
+  const apiMethodLabel = m => String(m || '').toUpperCase();
+  function apiAuthMeta(auth) {
+    return ({
+      none: { label: '公开接口', cls: '' },
+      optional: { label: '可选鉴权', cls: '' },
+      user: { label: '需要登录', cls: 'auth-user' },
+      admin: { label: '仅管理员', cls: 'auth-admin' }
+    })[auth] || { label: '鉴权', cls: '' };
+  }
+  const apiShellQuote = s => "'" + String(s).replace(/'/g, "'\\''") + "'";
+
+  function apiKeyValue() {
+    const el = $('#apiKeyAuth');
+    return el ? el.value.trim() : '';
+  }
+
+  function updateAPIAuthHint() {
+    const hint = $('#apiAuthHint');
+    if (!hint) return;
+    hint.textContent = apiKeyValue()
+      ? '已填写 Key，Try it 会随请求发送'
+      : '留空则使用当前登录会话';
+  }
+
+  function initAPIExplorer() {
+    if (apiLoaded || apiLoading) return;
+    const pane = $('#pane-api'), tpl = $('#apiExplorerTpl');
+    if (!pane || !tpl) return;
+    apiLoading = true;
+    pane.innerHTML = '';
+    pane.appendChild(tpl.content.cloneNode(true));
+
+    const keyEl = $('#apiKeyAuth');
+    try { keyEl.value = sessionStorage.getItem('wxcode-api-key') || ''; } catch (e) {}
+    keyEl.addEventListener('input', () => {
+      try { sessionStorage.setItem('wxcode-api-key', keyEl.value.trim()); } catch (e) {}
+      updateAPIAuthHint();
+    });
+    $('#apiKeyClear').onclick = () => {
+      keyEl.value = '';
+      try { sessionStorage.removeItem('wxcode-api-key'); } catch (e) {}
+      updateAPIAuthHint();
+      keyEl.focus();
+    };
+    $('#apiSearch').addEventListener('input', e => renderAPINav(e.target.value));
+    updateAPIAuthHint();
+    loadAPISpec();
+  }
+
+  async function loadAPISpec() {
+    const stage = $('#apiStage');
+    stage.innerHTML = '<div class="panel api-placeholder"><div class="api-loading">正在加载 OpenAPI 文档…</div></div>';
+    try {
+      const resp = await fetch('/api/openapi.json', { headers: { 'Accept': 'application/json' } });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      apiSpec = await resp.json();
+      apiOps = [];
+      Object.keys(apiSpec.paths || {}).forEach(path => {
+        Object.keys(apiSpec.paths[path] || {}).forEach(method => {
+          const op = apiSpec.paths[path][method];
+          if (!op || !op.operationId) return;
+          apiOps.push(Object.assign({}, op, { method: method.toUpperCase(), path: path }));
+        });
+      });
+      apiOps.sort((a, b) => (a['x-order'] || 0) - (b['x-order'] || 0));
+      if (!apiOps.length) throw new Error('接口目录为空');
+      apiLoaded = true;
+      apiLoading = false;
+      const hash = (location.hash || '').match(/^#api\/(.+)$/);
+      const wanted = hash ? decodeURIComponent(hash[1]) : '';
+      apiSelected = apiOps.some(op => op.operationId === wanted) ? wanted : apiOps[0].operationId;
+      renderAPINav('');
+      renderAPIDetail();
+    } catch (e) {
+      apiLoading = false;
+      stage.innerHTML = '<div class="panel api-placeholder">' +
+        '<div class="api-empty"><b>接口文档加载失败</b><br>' + esc(e.message) +
+        '<br><button class="btn btn-ghost btn-sm mt-3" id="apiRetry" type="button">重新加载</button></div></div>';
+      const retry = $('#apiRetry');
+      if (retry) retry.onclick = () => loadAPISpec();
+    }
+  }
+
+  function renderAPINav(query) {
+    const nav = $('#apiNav');
+    if (!nav || !apiSpec) return;
+    const q = String(query || '').trim().toLowerCase();
+    const groups = {};
+    apiOps.forEach(op => {
+      const hay = [op.path, op.summary, op.tags && op.tags.join(' '), op.description]
+        .join(' ').toLowerCase();
+      if (q && hay.indexOf(q) < 0) return;
+      const tag = (op.tags && op.tags[0]) || '其他';
+      (groups[tag] || (groups[tag] = [])).push(op);
+    });
+    const tagOrder = (apiSpec.tags || []).map(t => t.name);
+    const tags = tagOrder.filter(t => groups[t] && groups[t].length)
+      .concat(Object.keys(groups).filter(t => tagOrder.indexOf(t) < 0));
+
+    if (!tags.length) {
+      nav.innerHTML = '<div class="api-empty">没有匹配的接口</div>';
+      return;
+    }
+    nav.innerHTML = tags.map(tag => {
+      const items = groups[tag].map(op => {
+        const auth = apiAuthMeta(op['x-wxcode-auth']);
+        const lock = (op['x-wxcode-auth'] === 'user' || op['x-wxcode-auth'] === 'admin')
+          ? '<span class="api-nav-lock">' + (op['x-wxcode-auth'] === 'admin' ? '管理员' : '登录') + '</span>'
+          : '';
+        return '<button class="api-nav-item' + (op.operationId === apiSelected ? ' active' : '') +
+          '" type="button" aria-pressed="' + (op.operationId === apiSelected ? 'true' : 'false') +
+          '" data-api-op="' + esc(op.operationId) + '">' +
+          '<span class="method ' + apiMethodClass(op.method) + '">' + apiMethodLabel(op.method) + '</span>' +
+          '<span class="api-nav-text"><span class="api-nav-path">' + esc(op.path) + '</span>' +
+          '<span class="api-nav-summary">' + esc(op.summary || '') + '</span></span>' + lock + '</button>';
+      }).join('');
+      return '<div class="api-group"><div class="api-group-title">' + esc(tag) +
+        '<span>' + groups[tag].length + '</span></div>' + items + '</div>';
+    }).join('');
+
+    $$('[data-api-op]', nav).forEach(btn => {
+      btn.addEventListener('click', () => selectAPIOperation(btn.getAttribute('data-api-op'), true));
+    });
+  }
+
+  function selectAPIOperation(id, scroll) {
+    if (!apiOps.some(op => op.operationId === id)) return;
+    apiSelected = id;
+    renderAPINav($('#apiSearch') ? $('#apiSearch').value : '');
+    renderAPIDetail();
+    history.replaceState(null, '', '#api/' + encodeURIComponent(id));
+    if (scroll && window.matchMedia('(max-width:900px)').matches) {
+      $('#apiStage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  /* ---------- JSON / JSONC 语法高亮 ----------
+     后端把示例写成「标准 JSON + 行尾 // 中文注释」，这里给键、字符串、数字、
+     字面量、注释各上一种颜色，并保持原有缩进（缩进与注释列已由后端对齐）。 */
+  let apiCodeSeq = 0;
+
+  function jsonHilite(src) {
+    const s = String(src == null ? '' : src);
+    let out = '';
+    let i = 0;
+    while (i < s.length) {
+      const c = s.charAt(i);
+      // 字符串：顺带判断是不是「键」——后面紧跟冒号就是键
+      if (c === '"') {
+        let j = i + 1;
+        let raw = '"';
+        while (j < s.length) {
+          const d = s.charAt(j);
+          if (d === '\\') { raw += d + s.charAt(j + 1); j += 2; continue; }
+          raw += d;
+          j++;
+          if (d === '"') break;
+        }
+        let k = j;
+        while (k < s.length && /\s/.test(s.charAt(k))) k++;
+        const isKey = s.charAt(k) === ':';
+        out += '<span class="' + (isKey ? 'j-key' : 'j-str') + '">' + esc(raw) + '</span>';
+        i = j;
+        continue;
+      }
+      // 行注释：一直吃到行尾
+      if (c === '/' && s.charAt(i + 1) === '/') {
+        let j = s.indexOf('\n', i);
+        if (j < 0) j = s.length;
+        out += '<span class="j-cmt">' + esc(s.slice(i, j)) + '</span>';
+        i = j;
+        continue;
+      }
+      if (/[-0-9]/.test(c)) {
+        const m = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(s.slice(i));
+        if (m) { out += '<span class="j-num">' + m[0] + '</span>'; i += m[0].length; continue; }
+      }
+      let matched = false;
+      for (const lit of ['true', 'false', 'null']) {
+        if (s.startsWith(lit, i)) {
+          out += '<span class="j-lit">' + lit + '</span>';
+          i += lit.length;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+      out += esc(c);
+      i++;
+    }
+    return out;
+  }
+
+  // apiExampleBlock 渲染一个「带标题栏 + 复制按钮」的代码块。
+  function apiExampleBlock(title, text, lang) {
+    const id = 'apiCode' + (++apiCodeSeq);
+    const body = lang === 'json' ? jsonHilite(text) : esc(text);
+    return '<div class="code-wrap api-example">' +
+      '<div class="code-head"><span class="d-flex align-items-center"><span class="dots">' +
+      '<i></i><i></i><i></i></span>' + esc(title) + '</span>' +
+      '<button class="btn-copy" data-api-copy="' + id + '" type="button">复制</button></div>' +
+      '<pre class="code json-code" id="' + id + '">' + body + '</pre></div>';
+  }
+
+  function apiParamsHTML(op) {
+    const params = op.parameters || [];
+    if (!params.length) return '';
+    return '<section class="api-section"><h3 class="api-section-title">请求参数 <span>' +
+      params.length + ' 项</span></h3><div class="table-responsive"><table class="table table-sm api-table mb-0">' +
+      '<thead><tr><th>名称</th><th>位置</th><th>类型</th><th>必填</th><th>说明</th></tr></thead><tbody>' +
+      params.map(p => '<tr><td><code>' + esc(p.name) + '</code></td><td>' + esc(p.in) + '</td><td>' +
+        esc(p.schema && p.schema.type || 'string') + '</td><td>' +
+        (p.required ? '是' : '否') + '</td><td>' + esc(p.description || '') +
+        (p.schema && p.schema.enum ? '<br><span class="text-dim">可选：' +
+          p.schema.enum.map(v => esc(v)).join(' / ') + '</span>' : '') + '</td></tr>').join('') +
+      '</tbody></table></div></section>';
+  }
+
+  function apiBodyHTML(op) {
+    const content = op.requestBody && op.requestBody.content;
+    if (!content) return '';
+    return Object.keys(content).map(ct => {
+      const schema = content[ct] && content[ct].schema || {};
+      const props = schema.properties || {};
+      const required = schema.required || [];
+      const keys = Object.keys(props);
+      if (!keys.length) {
+        if (ct === 'application/octet-stream') {
+          return '<section class="api-section"><h3 class="api-section-title">请求体 <span>' +
+            esc(ct) + '</span></h3><p class="api-try-hint">直接发送图片字节，' +
+            'Content-Type 为 image/png / image/jpeg 等。</p></section>';
+        }
+        return '';
+      }
+      return '<section class="api-section"><h3 class="api-section-title">请求体 <span>' +
+        esc(ct) + '</span></h3><div class="table-responsive"><table class="table table-sm api-table mb-0">' +
+        '<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead><tbody>' +
+        keys.map(k => {
+          const p = props[k] || {};
+          return '<tr><td><code>' + esc(k) + '</code></td><td>' +
+            esc(p.format ? p.type + ' / ' + p.format : (p.type || 'string')) + '</td><td>' +
+            (required.indexOf(k) >= 0 ? '是' : '否') + '</td><td>' + esc(p.description || '') +
+            (p.enum ? '<br><span class="text-dim">可选：' + p.enum.map(v => esc(v)).join(' / ') + '</span>' : '') +
+            '</td></tr>';
+        }).join('') + '</tbody></table></div></section>';
+    }).join('');
+  }
+
+  // apiRequestHTML 请求示例：JSON 请求体走高亮，query 类接口展示完整 URL。
+  // BASE_TOKEN 拆成两段拼接：页面本身是 Go 模板，写成一整串会在服务端就被替换掉。
+  const BASE_TOKEN = '{' + '{BASE_URL}}';
+
+  function apiRequestHTML(op) {
+    const ex = op['x-wxcode-request-example'];
+    if (!ex) return '';
+    const body = op.requestBody && op.requestBody.content;
+    const isJSON = !!(body && body['application/json']);
+    let text = String(ex);
+    const base = (apiSpec.servers && apiSpec.servers[0] && apiSpec.servers[0].url) || location.origin;
+    if (text.indexOf(BASE_TOKEN) >= 0) text = text.split(BASE_TOKEN).join(base);
+    const hint = isJSON
+      ? '<p class="api-sub">行尾 <code>//</code> 后面是字段说明，粘进代码时删掉即可。</p>'
+      : '';
+    return '<section class="api-section"><h3 class="api-section-title">请求示例 <span>' +
+      esc(isJSON ? 'application/json' : 'query') + '</span></h3>' + hint +
+      apiExampleBlock(isJSON ? '请求示例 · application/json' : '请求示例 · URL',
+        text, isJSON ? 'json' : 'text') + '</section>';
+  }
+
+  function apiFieldRows(fields) {
+    return fields.map(f => {
+      const name = String(f.name || '');
+      const label = esc(name).replace(/\[\]/g, '<span class="field-arr">[]</span>');
+      return '<tr><td class="field-path">' + label + '</td><td>' + esc(f.type || '') +
+        '</td><td>' + esc(f.description || '') + '</td></tr>';
+    }).join('');
+  }
+
+  function apiResponsesHTML(op) {
+    const resp = op.responses || {};
+    const codes = Object.keys(resp);
+    if (!codes.length) return '';
+    // 1) 状态码总表
+    let html = '<section class="api-section"><h3 class="api-section-title">响应 <span>' +
+      codes.length + ' 种</span></h3><div class="table-responsive">' +
+      '<table class="table table-sm api-table api-resp mb-0">' +
+      '<thead><tr><th>状态</th><th>说明</th><th>Content-Type</th></tr></thead><tbody>' +
+      codes.map(code => {
+        const r = resp[code] || {};
+        const types = Object.keys(r.content || {});
+        // 每个媒体类型一个药丸：窄屏时在类型之间换行，而不是把长串生生截断
+        const ctHTML = types.length
+          ? types.map(t => '<span class="ct-tag">' + esc(t) + '</span>').join(' ')
+          : '<span class="text-dim">—</span>';
+        return '<tr><td><span class="status-pill ' + (String(code).startsWith('2') ? 'status-ok' : 'status-bad') +
+          '">' + esc(code) + '</span></td><td class="api-col-desc">' + esc(r.description || '') +
+          '</td><td>' + ctHTML + '</td></tr>';
+      }).join('') + '</tbody></table></div></section>';
+    // 2) 逐字段说明（后端 x-wxcode-fields，数组元素写作 results[].index）
+    codes.forEach(code => {
+      const fields = (resp[code] || {})['x-wxcode-fields'];
+      if (!fields || !fields.length) return;
+      html += '<section class="api-section"><h3 class="api-section-title">响应字段 <span>' +
+        esc(code) + ' · ' + fields.length + ' 项</span></h3>' +
+        '<div class="table-responsive"><table class="table table-sm api-table api-fields mb-0">' +
+        '<thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>' +
+        apiFieldRows(fields) + '</tbody></table></div></section>';
+    });
+    // 3) 示例：成功码直接展开，错误码折叠，避免一屏塞满红色块
+    codes.forEach(code => {
+      const content = (resp[code] || {}).content;
+      if (!content) return;
+      Object.keys(content).forEach(ct => {
+        const ex = content[ct] && content[ct]['x-wxcode-example'];
+        if (!ex) return;
+        const block = apiExampleBlock('响应示例 · ' + code + ' · ' + ct, ex, 'json');
+        if (String(code).startsWith('2')) {
+          html += '<section class="api-section"><h3 class="api-section-title">响应示例 <span>' +
+            esc(code + ' · ' + ct) + '</span></h3>' + block + '</section>';
+        } else {
+          html += '<details class="api-curl" style="margin-top:.6rem"><summary>' +
+            '响应示例 ' + esc(code) + ' · ' + esc(resp[code].description || '') + '</summary>' +
+            block + '</details>';
+        }
+      });
+    });
+    return html;
+  }
+
+  function apiTryFieldHTML(f, i) {
+    const id = 'apiField' + i;
+    const required = f.required ? '<i>必填</i>' : '';
+    const val = f.value === undefined || f.value === null ? '' : f.value;
+    let control = '';
+    if (f.type === 'file') {
+      control = '<input class="form-control" id="' + id + '" type="file" data-api-field data-api-name="' +
+        esc(f.name) + '" data-api-in="' + esc(f.in || 'file') + '" data-api-type="file">';
+    } else if (f.type === 'select') {
+      control = '<select class="custom-select" id="' + id + '" data-api-field data-api-name="' +
+        esc(f.name) + '" data-api-in="' + esc(f.in || 'body') + '" data-api-type="text">' +
+        (f.options || []).map(o => '<option value="' + esc(o) + '"' +
+          (String(o) === String(val) ? ' selected' : '') + '>' +
+          (o === '' ? '（不填）' : esc(o)) + '</option>').join('') + '</select>';
+    } else if (f.type === 'textarea') {
+      control = '<textarea class="form-control" id="' + id + '" rows="' + (f.rows || 3) +
+        '" data-api-field data-api-name="' + esc(f.name) + '" data-api-in="' + esc(f.in || 'body') +
+        '" data-api-type="text" placeholder="' + esc(f.placeholder || '') + '">' +
+        esc(String(val)) + '</textarea>';
+    } else {
+      const inputType = f.type === 'password' ? 'password' : (f.type === 'number' ? 'number' : 'text');
+      control = '<input class="form-control" id="' + id + '" type="' + inputType +
+        '" value="' + esc(String(val)) + '" data-api-field data-api-name="' + esc(f.name) +
+        '" data-api-in="' + esc(f.in || 'body') + '" data-api-type="' +
+        (f.type === 'number' ? 'number' : 'text') + '">';
+    }
+    return '<label class="api-try-field' + (f.type === 'textarea' ? ' api-wide' : '') +
+      '" for="' + id + '"><span>' + esc(f.label || f.name) + required + '</span>' + control + '</label>';
+  }
+
+  function apiTryHTML(op) {
+    const t = op['x-wxcode-try'];
+    if (!t) return '';
+    const fields = t.fields || [];
+    let fieldsHTML = '';
+    if (t.mode === 'json-editor') {
+      fieldsHTML = '<label class="api-try-field api-wide"><span>JSON 请求体</span>' +
+        '<textarea class="form-control" id="apiTryJSON" rows="11" spellcheck="false">' +
+        esc(t.template || '{}') + '</textarea></label>';
+    } else if (fields.length) {
+      fieldsHTML = '<div class="api-try-grid">' + fields.map(apiTryFieldHTML).join('') + '</div>';
+    }
+    const modeHint = t.mode === 'multipart'
+      ? '请求将以 multipart/form-data 发送，文件会随请求上传。'
+      : (t.mode === 'json' || t.mode === 'json-editor'
+        ? '请求将以 application/json 发送。'
+        : '参数会拼到 URL query 上，不发送请求体。');
+    return '<section class="api-section"><h3 class="api-section-title">Try it <span>' +
+      esc(apiMethodLabel(op.method)) + ' ' + esc(op.path) + '</span></h3>' +
+      '<div class="api-try-box"><p class="api-try-hint">' + modeHint + '</p>' +
+      (fieldsHTML || '') +
+      '<div class="api-try-actions"><button class="btn btn-brand btn-sm" id="apiTrySend" type="button">发送请求</button>' +
+      '<button class="btn btn-ghost btn-sm" id="apiTryReset" type="button">清空结果</button>' +
+      '<span class="api-try-state" id="apiTryState" role="status" aria-live="polite"></span></div>' +
+      '<div class="api-try-out" id="apiTryOut" hidden></div></div></section>';
+  }
+
+  function apiCurl(op) {
+    const t = op['x-wxcode-try'] || {};
+    const fields = t.fields || [];
+    let path = op.path;
+    const qs = new URLSearchParams();
+    const body = {};
+    const form = [];
+    fields.forEach(f => {
+      let v = f.value === undefined || f.value === null ? '' : String(f.value);
+      if (f.in === 'path') path = path.replace('{' + f.name + '}', encodeURIComponent(v));
+      else if (f.in === 'query' && v !== '') qs.set(f.name, v);
+      else if (f.in === 'file') form.push('-F ' + apiShellQuote(f.name + '=@image.png'));
+      else if (f.in === 'body' && v !== '') body[f.name] = f.type === 'number' ? Number(v) : v;
+    });
+    if (t.mode === 'json-editor') {
+      try { Object.assign(body, JSON.parse(t.template || '{}')); } catch (e) {}
+    }
+    let url = (apiSpec.servers && apiSpec.servers[0] && apiSpec.servers[0].url || location.origin) + path;
+    const query = qs.toString();
+    if (query) url += (url.indexOf('?') >= 0 ? '&' : '?') + query;
+    const lines = ['curl -X ' + op.method + ' ' + apiShellQuote(url)];
+    if (op['x-wxcode-auth'] && op['x-wxcode-auth'] !== 'none') {
+      lines.push('  -H ' + apiShellQuote('X-API-Key: wx_你的Key'));
+    }
+    if (t.mode === 'multipart') {
+      form.forEach(line => lines.push('  ' + line));
+    } else if (t.mode === 'json' || t.mode === 'json-editor') {
+      lines.push('  -H ' + apiShellQuote('Content-Type: application/json'));
+      lines.push('  --data-raw ' + apiShellQuote(JSON.stringify(body, null, 2)));
+    }
+    return lines.join(' \\\n  ');
+  }
+
+  function renderAPIDetail() {
+    const stage = $('#apiStage');
+    if (!stage) return;
+    const op = apiOps.find(x => x.operationId === apiSelected);
+    if (!op) {
+      stage.innerHTML = '<div class="panel api-placeholder"><div class="api-empty">请选择左侧接口</div></div>';
+      return;
+    }
+    const auth = apiAuthMeta(op['x-wxcode-auth']);
+    const curl = apiCurl(op);
+    stage.innerHTML = '<article class="panel api-detail">' +
+      '<div class="api-op-head"><div class="api-op-line">' +
+      '<span class="method ' + apiMethodClass(op.method) + '">' + apiMethodLabel(op.method) + '</span>' +
+      '<code class="api-op-path">' + esc(op.path) + '</code>' +
+      '<span class="api-auth-badge ' + auth.cls + '">' + esc(auth.label) + '</span></div>' +
+      '<h2 class="api-op-title">' + esc(op.summary || '') + '</h2>' +
+      '<p class="api-op-desc">' + esc(op.description || '') + '</p>' +
+      '<div class="api-op-meta"><span>operationId: ' + esc(op.operationId) + '</span>' +
+      '<button class="btn btn-ghost btn-sm" id="apiCopyCurl" type="button">复制 cURL</button></div></div>' +
+      '<div class="api-detail-body">' + apiParamsHTML(op) + apiBodyHTML(op) +
+      apiRequestHTML(op) +
+      '<details class="api-curl"><summary>cURL 示例</summary><pre class="json-code">' + esc(curl) + '</pre></details>' +
+      apiTryHTML(op) +
+      apiResponsesHTML(op) +
+      '</div></article>';
+    bindAPIDetail(op);
+  }
+
+  function bindAPIDetail(op) {
+    const copy = $('#apiCopyCurl');
+    if (copy) {
+      copy.onclick = async () => {
+        try {
+          await copyText(apiCurl(op));
+          copy.textContent = '已复制';
+          setTimeout(() => { copy.textContent = '复制 cURL'; }, 1400);
+        } catch (e) { toast('复制失败，请手动选择代码', true); }
+      };
+    }
+    // 每个示例块自带复制按钮：直接取 <pre> 的 innerText，注释也一起带走
+    $$('[data-api-copy]', $('#apiStage')).forEach(btn => {
+      btn.onclick = async () => {
+        const pre = document.getElementById(btn.getAttribute('data-api-copy'));
+        if (!pre) return;
+        try {
+          await copyText(pre.innerText);
+          btn.textContent = '已复制';
+          setTimeout(() => { btn.textContent = '复制'; }, 1400);
+        } catch (e) { toast('复制失败，请手动选择代码', true); }
+      };
+    });
+    const send = $('#apiTrySend');
+    if (!send) return;
+    const out = $('#apiTryOut');
+    const state = $('#apiTryState');
+    const stage = $('#apiStage');
+    const clearOut = () => {
+      if (out.dataset.url) {
+        URL.revokeObjectURL(out.dataset.url);
+        out.removeAttribute('data-url');
+      }
+      out.hidden = true;
+      out.innerHTML = '';
+    };
+    const reset = $('#apiTryReset');
+    if (reset) reset.onclick = () => { clearOut(); state.textContent = ''; };
+
+    send.onclick = async () => {
+      const t = op['x-wxcode-try'] || {};
+      let path = op.path;
+      const query = new URLSearchParams();
+      const body = {};
+      const fd = new FormData();
+      let hasFile = false;
+      try {
+        if (t.mode === 'json-editor') {
+          Object.assign(body, JSON.parse($('#apiTryJSON').value || '{}'));
+        }
+        $$('[data-api-field]', stage).forEach(el => {
+          const name = el.getAttribute('data-api-name');
+          const where = el.getAttribute('data-api-in');
+          const kind = el.getAttribute('data-api-type');
+          if (kind === 'file') {
+            if (el.files && el.files[0]) { fd.append(name, el.files[0]); hasFile = true; }
+            return;
+          }
+          let val = el.value;
+          if (val === '' && where !== 'path') return;
+          if (kind === 'number') val = Number(val);
+          if (where === 'path') path = path.replace('{' + name + '}', encodeURIComponent(String(val)));
+          else if (where === 'query') query.set(name, String(val));
+          else if (t.mode === 'multipart' && where === 'file') {
+            /* file handled above */
+          } else if (t.mode === 'multipart') {
+            fd.append(name, String(val));
+          } else {
+            body[name] = val;
+          }
+        });
+      } catch (e) {
+        state.textContent = 'JSON 格式错误：' + e.message;
+        return;
+      }
+      if (/\{[^}]+\}/.test(path)) {
+        state.textContent = '请填写所有路径参数';
+        return;
+      }
+      if (t.mode === 'multipart' && !hasFile) {
+        state.textContent = '请选择一个文件';
+        return;
+      }
+
+      let url = ((apiSpec.servers && apiSpec.servers[0] && apiSpec.servers[0].url) || location.origin) + path;
+      const qs = query.toString();
+      if (qs) url += (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+      const headers = { 'Accept': 'application/json' };
+      const auth = op['x-wxcode-auth'];
+      if (auth && auth !== 'none' && apiKeyValue()) headers['X-API-Key'] = apiKeyValue();
+      const opt = { method: op.method, headers: headers };
+      if (t.mode === 'multipart') {
+        opt.body = fd;
+      } else if (t.mode === 'json' || t.mode === 'json-editor') {
+        headers['Content-Type'] = 'application/json';
+        opt.body = JSON.stringify(body);
+      }
+
+      send.disabled = true;
+      state.textContent = '请求中…';
+      clearOut();
+      const started = performance.now();
+      try {
+        const resp = await fetch(url, opt);
+        const ms = Math.round(performance.now() - started);
+        const ct = resp.headers.get('Content-Type') || '';
+        const head = '<div class="api-try-head"><span class="status-pill ' +
+          (resp.ok ? 'status-ok' : 'status-bad') + '">' + resp.status + '</span>' +
+          '<span class="text-dim">' + esc(ct || '无 Content-Type') + ' · ' + ms + 'ms</span></div>';
+        out.hidden = false;
+        if (ct.indexOf('image/') === 0) {
+          const blob = await resp.blob();
+          const objURL = URL.createObjectURL(blob);
+          out.dataset.url = objURL;
+          out.innerHTML = head + '<img alt="接口响应图片" src="' + objURL + '">';
+        } else {
+          const text = await resp.text();
+          let pretty = text;
+          let isJSON = false;
+          try { pretty = JSON.stringify(JSON.parse(text), null, 2); isJSON = true; } catch (e) {}
+          out.innerHTML = head + '<pre class="json-code">' +
+            (isJSON ? jsonHilite(pretty) : esc(pretty)) + '</pre>';
+        }
+        state.textContent = resp.ok ? '请求完成' : '请求失败';
+      } catch (e) {
+        out.hidden = false;
+        out.innerHTML = '<pre>' + esc(e.message) + '</pre>';
+        state.textContent = '网络错误';
+      } finally {
+        send.disabled = false;
+      }
+    };
+  }
+
+  /* ================= 旧版接口页 Try（仅作无 JS / 模板替换前回退） ================= */
+  $$('.trybox').forEach(box => {
+    const btn = $('.try-send', box);
+    const out = $('.try-out', box);
+    const mode = box.dataset.mode;
+    const field = k => { const el = $('[data-field="' + k + '"]', box); return el ? el.value : ''; };
+    const fileInput = $('.try-file', box);
+    const fileLabel = $('.custom-file-label', box);
+    const flow = createFlow();
+    let outputURL = '';
+
+    if (fileInput && fileLabel) {
+      fileInput.addEventListener('change', () => {
+        const f = fileInput.files[0];
+        if (f) fileLabel.textContent = f.name;
+      });
+    }
+
+    btn.onclick = async () => {
+      const ticket = flow.next();
+      btn.disabled = true;
+      out.innerHTML = '<span class="text-dim">请求中…</span>';
+      const t0 = performance.now();
+      try {
+        let resp;
+        if (mode === 'encode-post') {
+          resp = await fetch('/api/encode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: field('text'),
+              format: field('format'),
+              size: parseInt(field('size'), 10) || 600
+            }),
+            signal: ticket.signal
+          });
+        } else if (mode === 'encode-get') {
+          const q = new URLSearchParams({
+            text: field('text'),
+            format: field('format'),
+            size: field('size') || '600'
+          });
+          resp = await fetch('/api/encode?' + q.toString(), { signal: ticket.signal });
+        } else {
+          const f = fileInput && fileInput.files[0];
+          if (!f) {
+            out.innerHTML = '';
+            toast('请先选择一张图片', true);
+            return;
+          }
+          // 路由由当前 Try 面板决定，QR 面板必须真的请求 /api/qr。
+          const endpoint = mode === 'qr' ? '/api/qr' : '/api/decode';
+          resp = await fetch(endpoint, { method: 'POST', body: f, signal: ticket.signal });
+        }
+        if (!ticket.current()) return;
+        const ms = Math.round(performance.now() - t0);
+        const ct = resp.headers.get('Content-Type') || '';
+        const head = '<div class="mb-2 d-flex align-items-center" style="gap:.5rem">' +
+          '<span class="status-pill ' + (resp.ok ? 'status-ok' : 'status-bad') + '">' + resp.status + '</span>' +
+          '<span class="text-dim">' + esc(ct) + ' · ' + ms + 'ms</span></div>';
+
+        if (ct.indexOf('image/') === 0) {
+          const blob = await resp.blob();
+          if (!ticket.current()) return;
+          if (outputURL) URL.revokeObjectURL(outputURL);
+          outputURL = URL.createObjectURL(blob);
+          out.innerHTML = head + '<div class="text-dim mb-1">' + (blob.size / 1024).toFixed(1) + 'KB</div>' +
+            '<img src="' + outputURL + '" alt="响应">';
+        } else {
+          const txt = await resp.text();
+          if (!ticket.current()) return;
+          let pretty = txt;
+          let isJSON = false;
+          try { pretty = JSON.stringify(JSON.parse(txt), null, 2); isJSON = true; } catch (e) {}
+          out.innerHTML = head + '<div class="code-wrap mt-2"><pre class="code json-code">' +
+            (isJSON ? jsonHilite(pretty) : esc(pretty)) + '</pre></div>';
+          if (!resp.ok) {
+            let msg = 'HTTP ' + resp.status;
+            try { const j = JSON.parse(txt); if (j && j.error) msg = j.error; } catch (e) {}
+            toast(msg, true);
+          }
+        }
+      } catch (e) {
+        if (isStale(ticket, e)) return;
+        out.innerHTML = '';
+        toast(e.message, true);
+      } finally {
+        if (ticket.current()) btn.disabled = false;
+      }
+    };
+  });
+
+  /* ================= 复制（代码块）：统一走 copyText，兼容非 https 环境 ================= */
+  $$('.btn-copy[data-copy]').forEach(b => {
+    const label = b.textContent;
+    b.onclick = async () => {
+      const el = document.getElementById(b.dataset.copy);
+      if (!el) return;
+      try {
+        await copyText(el.innerText);
+        b.textContent = '已复制';
+      } catch (e) {
+        b.textContent = '复制失败';
+      }
+      setTimeout(() => { b.textContent = label; }, 1400);
+    };
+  });
+
+  // ---------- 水印：默认折叠，点「展开水印设置」再编辑 ----------
+  function wmToggleVisible(show) {
+    const btn = $('#wmToggle');
+    if (btn) btn.hidden = !show;
+  }
+
+  function wmSetExpanded(open) {
+    const fields = $('#wmFields'), btn = $('#wmToggle'), label = $('#wmToggleText');
+    if (!fields) return;
+    fields.hidden = !open;
+    if (btn) {
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (label) label.textContent = open ? '收起水印设置' : '展开水印设置';
+    if (open) wmSyncLabels();
+  }
+
+  const wmToggleBtn = $('#wmToggle');
+  if (wmToggleBtn) {
+    wmToggleBtn.addEventListener('click', function(){
+      wmSetExpanded($('#wmFields').hidden);
+    });
+  }
+
+  // ---------- 水印：本地缓存（下次访问直接带出） ----------
+  const WM_CACHE_KEY = 'wxcode.watermark.v1';
+
+  function wmLoadCache() {
+    try {
+      const raw = localStorage.getItem(WM_CACHE_KEY);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      return (c && typeof c === 'object') ? c : null;
+    } catch (e) { return null; }
+  }
+
+  function wmSaveCache() {
+    try {
+      localStorage.setItem(WM_CACHE_KEY, JSON.stringify({
+        on: $('#wmOn').checked,
+        text: $('#wmText').value.trim(),
+        size: parseInt($('#wmSize').value, 10) || 20,
+        color: $('#wmColor').value || '#1f2937',
+        opacity: parseInt($('#wmOpacity').value, 10) || 0,
+        position: $('#wmPosition').value || 'center'
+      }));
+    } catch (e) { /* 隐私模式禁用 localStorage 时静默忽略 */ }
+  }
+
+  // ---------- 水印：滑块数值 ----------
+  function wmSyncLabels() {
+    const size = $('#wmSize'), op = $('#wmOpacity');
+    if (size) $('#wmSizeVal').textContent = size.value + ' px';
+    if (op) $('#wmOpacityVal').textContent = op.value + '%';
+  }
+
+  // applyWatermarkUI 根据后台开关与权限模式，决定水印设置区是否展示 / 是否可编辑。
+  function applyWatermarkUI(st, user) {
+    const block = $('#wmBlock');
+    if (!block) return;
+    const mode = st.watermarkMode || 'none';
+    const isUser = !!(user && user.username);
+
+    // ① 无水印 ② 管理员全局配置：前端完全不展示水印设置
+    if (mode === 'none' || mode === 'admin') {
+      block.hidden = true;
+      wmCanConfig = false;
+      return;
+    }
+    block.hidden = false;
+
+    // ③ 登录用户可以配置：未登录时展示但禁用开关，且保持关闭
+    const loginOnly = mode === 'user';
+    wmCanConfig = mode === 'all' || (loginOnly && isUser);
+
+    const on = $('#wmOn'), hint = $('#wmHint');
+    if (loginOnly && !isUser) {
+      on.checked = false;
+      on.disabled = true;
+      wmToggleVisible(false);
+      wmSetExpanded(false);
+      hint.textContent = '（未登录不可配置，当前不加水印）';
+      return;
+    }
+
+    // ② 所有人可配置 / ③ 已登录：开关可用
+    on.disabled = false;
+    // 开关默认可能是关的，但「展开设置」要一直在：用户得先填文字才能打开水印
+    wmToggleVisible(true);
+    // 只在首次加载时初始化：优先进浏览器缓存（用户上次的设置），
+    // 没有缓存就用内置默认值；不再套用后台默认水印（那只是 admin 模式用的）。
+    // 生成成功后页面会刷新 /api/me，这里不能重复覆盖用户的选择。
+    if (!wmDefaultsApplied) {
+      const cached = wmLoadCache();
+      if (cached) {
+        if (typeof cached.text === 'string') $('#wmText').value = cached.text;
+        if (cached.size >= 8 && cached.size <= 240) $('#wmSize').value = cached.size;
+        if (/^#[0-9a-fA-F]{6}$/.test(cached.color || '')) $('#wmColor').value = cached.color;
+        if (cached.opacity >= 0 && cached.opacity <= 100) $('#wmOpacity').value = cached.opacity;
+        if (cached.position) $('#wmPosition').value = cached.position;
+      }
+      // 没配置过、或缓存里没有文字：默认关闭，避免“开关开着却没有水印”
+      on.checked = !!(cached && cached.on && String(cached.text || '').trim());
+      wmSetExpanded(false); // 首次进入默认折叠，避免一进页面就铺开一大片设置
+      wmDefaultsApplied = true;
+    }
+    wmSyncLabels();
+    hint.textContent = '（可自定义文字 / 字号 / 颜色 / 透明度 / 位置）';
+  }
+
+  ['wmText','wmSize','wmColor','wmOpacity','wmPosition'].forEach(function(id){
+    const el = $('#' + id);
+    if (!el) return;
+    el.addEventListener('input', function(){
+      wmSyncLabels();
+      // 用户填了水印文字却忘了开开关时自动打开，避免“填了却没效果”
+      if (id === 'wmText' && el.value.trim() && !$('#wmOn').checked) {
+        $('#wmOn').checked = true;
+        wmToggleVisible(true);
+      }
+    });
+    el.addEventListener('change', function(){ wmSyncLabels(); wmSaveCache(); });
+  });
+
+  /* ================= 账号：PC 右上角 + 手机顶栏图标，两处同步 ================= */
+  async function refreshAccount() {
+    const link = $('#navAccount'), text = $('#navAccountText');
+    const icon = $('#navAccountIcon');
+    const apply = (href, title, label) => {
+      if (link) { link.href = href; link.title = title; }
+      if (text) text.textContent = label;
+      if (icon) { icon.href = href; icon.title = title; icon.setAttribute('aria-label', title); }
+    };
+    try {
+      const r = await fetch('/api/me', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error('http ' + r.status);
+      const d = await r.json();
+      if (d.user) {
+        apply('/me', '个人中心', d.user.username);
+      } else {
+        apply('/login', '登录 / 注册', '登录');
+      }
+      applyWatermarkUI(d.settings || {}, d.user || null);
+    } catch (e) {
+      apply('/login', '登录 / 注册', '登录');
+    }
+  }
+  refreshAccount();
+
+  setFormat('png', false);
+  // 首屏不预先编码：很多访客只看不改，没必要为每次打开页面消耗一次渲染。
+  // 输入内容后由用户显式生成（或参数变化时静默刷新）。
+  $('#btnPng').disabled = true;
+  $('#thumbHint').textContent = '输入内容后点击「生成」，这里会显示预览';
+
+  // 剪贴板里的图片可直接粘贴到「解码 / 好友码」分栏。
+  document.addEventListener('paste', e => {
+    if (currentTab !== 'dec' && currentTab !== 'add') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        const f = items[i].getAsFile();
+        if (!f) continue;
+        e.preventDefault();
+        toast('已从剪贴板读取图片');
+        currentTab === 'dec' ? decodeBlob(f) : addDecode(f);
+        return;
+      }
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    [previewURL, addPreviewURL, decPreviewURL].forEach(u => { if (u) URL.revokeObjectURL(u); });
+    $$('.try-out').forEach(el => {
+      const img = el.querySelector('img[src^="blob:"]');
+      if (img) URL.revokeObjectURL(img.getAttribute('src'));
+    });
+  });
+
+  // 放到所有模块的 let 初始化之后，避免深链接 #api 时访问尚未初始化的状态。
+  showTab(((location.hash || '#gen').slice(1).split('/')[0]) || 'gen');
+})();
+</script>
+</body>
+</html>

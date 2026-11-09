@@ -1,0 +1,39 @@
+# 编译产物
+# ⚠ 这里不要写 "wxcode"/"/wxcode"：dockerignore 不按目录锚定，会连 cmd/wxcode/ 一起排除，
+# 构建时报 "/cmd: not found"。根目录的旧二进制即使被带上也只是几十 MB 上下文，不影响构建。
+wxcode.exe
+*.exe~
+*.test
+
+# IDE
+.idea/
+.vscode/
+
+# 文档与工具（镜像里用不到，只增体积）
+doc/
+README.md
+
+# 部署脚本（在宿主机执行，不进镜像）
+bin/
+
+# 生成物 / 预览快照（不是部署文件）
+out/
+
+# 本地数据库与上传（运行时数据，绝不进镜像）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# 页面已 go:embed 进二进制，但编译阶段仍需要它 →
+# 本条不要打开：Dockerfile 里 COPY web/ 是构建必需项
+# web/
+
+# Git 与编辑器缓存
+.git/
+.gitignore
+.workbuddy/
+.workbuddy-ai/
+
+# 本地运行产生的日志
+*.log

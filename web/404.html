@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2f6bff">
+<meta name="robots" content="noindex">
+<title>页面不存在 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+<style>
+/* 只写 404 专属的那几块，颜色 / 圆角 / 阴影全部用 auth.css 的令牌，跟站点保持一致 */
+.nf-card{text-align:left}
+.nf-head{display:flex;align-items:center;gap:.85rem}
+.nf-code{font-size:3.1rem;font-weight:800;letter-spacing:-.045em;line-height:1;flex:0 0 auto;
+  background:linear-gradient(120deg,var(--brand),var(--brand-2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.nf-head .card-title{margin:0}
+.nf-head .card-sub{margin:.2rem 0 0}
+.nf-bar{position:relative;height:3px;border-radius:3px;background:var(--brand-soft);
+  overflow:hidden;margin:1rem 0 .6rem}
+.nf-bar i{position:absolute;inset:0;border-radius:3px;
+  background:linear-gradient(90deg,var(--brand),var(--brand-2));
+  transform-origin:left;animation:nfgo 3s linear forwards}
+@keyframes nfgo{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media(prefers-reduced-motion:reduce){.nf-bar i{animation:none}}
+.nf-tip{display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  font-size:.82rem;color:var(--dim)}
+.nf-tip b{color:var(--brand);font-variant-numeric:tabular-nums;font-size:.95rem}
+.nf-actions{display:flex;gap:.55rem;margin-top:1.15rem;flex-wrap:wrap}
+.nf-actions .btn{flex:1 1 9rem;justify-content:center}
+@media(max-width:420px){
+  .nf-code{font-size:2.6rem}
+  .nf-head{gap:.65rem}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}</a>
+    <div class="grow"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap narrow">
+  <div class="card nf-card">
+    <div class="nf-head">
+      <span class="nf-code">404</span>
+      <div>
+        <h1 class="card-title">页面不存在</h1>
+        <p class="card-sub">地址可能已被删除，或者输错了</p>
+      </div>
+    </div>
+
+    <div class="nf-bar"><i style="animation:none;transform:scaleX(1);opacity:.55"></i></div>
+    <div class="nf-tip">
+      <span>请检查地址是否完整，或从下方返回</span>
+      <span class="mono" style="font-size:.74rem;opacity:.7">404 Not Found</span>
+    </div>
+
+    <div class="nf-actions">
+      <a class="btn btn-brand" href="/">立即返回首页</a>
+      <button class="btn" id="back" type="button">返回上一页</button>
+    </div>
+  </div>
+  <p class="hint" style="text-align:center;margin-top:1rem">{{SITE_NAME}}</p>
+</main>
+
+<script>
+(function () {
+  const themeKey = 'wxcode-theme';
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    const m = document.querySelector('meta[name=theme-color]');
+    if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+  }
+  try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch (e) { applyTheme('light'); }
+  const tb = document.querySelector('#themeBtn');
+  if (tb) tb.onclick = function () {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(themeKey, next); } catch (e) {}
+  };
+
+  document.querySelector('#back').onclick = function () {
+    if (history.length > 1) history.back(); else location.href = '/';
+  };
+})();
+</script>
+</body>
+</html>

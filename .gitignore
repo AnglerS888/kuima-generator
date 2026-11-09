@@ -1,0 +1,32 @@
+# 编译产物
+# ⚠ 不要写裸 "wxcode"：gitignore 里不带斜杠的模式会匹配任意层级，
+# 会把 cmd/wxcode/ 这个源码目录一起忽略（曾导致部署包里没有 cmd/）。
+/wxcode
+/wxcode.exe
+*.exe
+*.exe~
+*.test
+
+# 生成物 / 调试快照
+out/
+
+# 本地数据库（运行时数据）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.idea/
+.vscode/
+.workbuddy/
+
+# 日志
+*.log
+
+# 部署时生成的管理员凭据（明文密码，绝不入库）
+.wxcode-admin.env
+
+# 系统
+.DS_Store
+Thumbs.db

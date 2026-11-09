@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2f6bff">
+<title>找回密码 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+</head>
+<body class="narrow-page">
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}</a>
+    <div class="grow"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap narrow">
+  <div class="card">
+    <div class="card-head"><h1 class="card-title">找回密码</h1></div>
+    <p class="card-sub">通过账号已绑定的邮箱接收验证码，验证后设置新密码。</p>
+
+    <!-- 不可用提示：开关关闭 / 发信未配置时，在这里如实告诉用户去找管理员 -->
+    <div id="notice" class="note warn" style="display:none;margin-bottom:1rem"></div>
+
+    <form id="form" autocomplete="on">
+      <div class="field">
+        <label for="u">用户名</label>
+        <input class="input" id="u" autocomplete="username" required>
+      </div>
+
+      <div id="step1">
+        <button class="btn btn-brand btn-block" id="sendBtn" type="button">发送邮箱验证码</button>
+      </div>
+
+      <div id="step2" style="display:none">
+        <div class="note" id="sentTo" style="margin:.2rem 0 .9rem"></div>
+        <div class="field">
+          <label for="code">邮箱验证码</label>
+          <div class="captcha-row">
+            <input class="input mono" id="code" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+                   spellcheck="false" placeholder="6 位数字">
+            <button class="btn" id="resendBtn" type="button" style="flex:0 0 auto">重新发送</button>
+          </div>
+          <div class="hint">验证码 10 分钟内有效，只能使用一次。</div>
+        </div>
+        <div class="field">
+          <label for="p">新密码（至少 6 位）</label>
+          <input class="input" id="p" type="password" autocomplete="new-password">
+        </div>
+        <button class="btn btn-brand btn-block" id="resetBtn" type="button">重置密码</button>
+      </div>
+
+      <div id="msg" class="hint"></div>
+    </form>
+
+    <p class="hint" style="margin:1rem 0 0">
+      无法通过邮箱找回（未绑定邮箱 / 管理员未开启邮箱验证）？请联系管理员重置密码。
+    </p>
+  </div>
+  <p class="hint" style="text-align:center;margin-top:1rem"><a href="/login">← 返回登录</a></p>
+</main>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+const $ = s => document.querySelector(s);
+const themeKey = 'wxcode-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+}
+try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch(e){}
+$('#themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  try { localStorage.setItem(themeKey, t); } catch(e){}
+};
+function toast(msg, bad){ layer.msg(msg, {error: !!bad}); }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opt || {}));
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if (!r.ok) { const e = new Error(d.error || ('HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
+  return d;
+}
+
+// 不可用时的提示：与后端 emailResetGuard / errEmailNoBound 的文案保持一致
+const NO_SWITCH = '管理员未开启邮箱找回密码，请联系管理员重置密码';
+const NO_SMTP = '管理员尚未完成发信配置，暂时无法通过邮箱找回，请联系管理员重置密码';
+let available = false;
+let sentEmail = '';
+let timer = null;
+
+function showNotice(text){
+  const n = $('#notice');
+  n.textContent = text;
+  n.style.display = '';
+  $('#step1').style.display = 'none';
+  $('#step2').style.display = 'none';
+}
+function setMsg(text){ $('#msg').textContent = text || ''; }
+
+function startCountdown(sec){
+  const btn = $('#sendBtn'), re = $('#resendBtn');
+  let left = sec || 60;
+  clearInterval(timer);
+  const tick = () => {
+    const label = '重新发送（' + left + 's）';
+    re.disabled = true; re.textContent = label;
+    btn.disabled = true;
+    if (left <= 0) {
+      clearInterval(timer);
+      re.disabled = false; re.textContent = '重新发送';
+      btn.disabled = false;
+      return;
+    }
+    left--;
+  };
+  tick();
+  timer = setInterval(tick, 1000);
+}
+
+async function init(){
+  let st = {};
+  try {
+    const d = await api('/api/me');
+    st = d.settings || {};
+    available = !!st.emailResetAvailable;
+  } catch (e) {
+    available = false;
+  }
+  if (!available) {
+    // 开关关着 / 开关开着但发信没配好，分别说清楚，文案与接口返回一致
+    showNotice(st.emailVerifyEnabled === true ? NO_SMTP : NO_SWITCH);
+  }
+}
+
+async function sendCode(){
+  const username = $('#u').value.trim();
+  if (!username) { toast('请输入用户名', true); $('#u').focus(); return; }
+  const btn = $('#sendBtn');
+  btn.disabled = true;
+  setMsg('');
+  try {
+    const d = await api('/api/password/forgot', {method:'POST', body: JSON.stringify({username})});
+    sentEmail = d.email || '';
+    $('#sentTo').textContent = '验证码已发送到 ' + sentEmail + '，10 分钟内有效。';
+    $('#step2').style.display = '';
+    $('#step1').style.display = 'none';
+    $('#notice').style.display = 'none';
+    startCountdown(d.retryIn || 60);
+    $('#code').focus();
+  } catch (e) {
+    // 未绑定邮箱 / 开关关闭 / 发信未配置：一律引导联系管理员
+    const msg = e.message || '发送失败，请稍后重试';
+    if (e.status === 403 || /联系管理员/.test(msg)) {
+      showNotice(msg);
+    } else {
+      $('#step1').style.display = '';
+      toast(msg, true);
+    }
+    btn.disabled = false;
+  }
+}
+
+$('#sendBtn').onclick = sendCode;
+$('#resendBtn').onclick = sendCode;
+$('#u').onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); sendCode(); } };
+
+$('#resetBtn').onclick = async () => {
+  const username = $('#u').value.trim();
+  const code = $('#code').value.trim();
+  const pwd = $('#p').value;
+  if (!code) { toast('请输入邮箱验证码', true); $('#code').focus(); return; }
+  if (pwd.length < 6) { toast('新密码至少 6 位', true); $('#p').focus(); return; }
+  const btn = $('#resetBtn');
+  btn.disabled = true;
+  try {
+    await api('/api/password/reset', {method:'POST', body: JSON.stringify({
+      username: username, code: code, newPassword: pwd
+    })});
+    toast('密码已重置，请用新密码登录');
+    setTimeout(() => { location.href = '/login'; }, 900);
+  } catch (e) {
+    toast(e.message || '重置失败', true);
+    btn.disabled = false;
+  }
+};
+
+init().catch(() => showNotice(NO_SWITCH));
+</script>
+</body>
+</html>

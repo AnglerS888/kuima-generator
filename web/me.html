@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2f6bff">
+<title>我的 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+</head>
+<body>
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}</a>
+    <div class="grow"></div>
+    <a class="link-btn" href="/">首页</a>
+    <a class="link-btn" href="/admin" id="adminLink" style="display:none">管理后台</a>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+    <button class="link-btn" id="logout" type="button">退出</button>
+  </div>
+</header>
+
+<main class="wrap me-page">
+  <div class="tabs" role="tablist" aria-label="我的">
+    <button class="tab active" data-tab="profile" type="button" role="tab" aria-selected="true"
+            aria-controls="tab-profile">用户信息</button>
+    <button class="tab" data-tab="redeem" type="button" role="tab" aria-selected="false"
+            aria-controls="tab-redeem">卡密兑换</button>
+    <button class="tab" data-tab="key" type="button" role="tab" aria-selected="false"
+            aria-controls="tab-key">API Key</button>
+    <button class="tab" data-tab="records" type="button" role="tab" aria-selected="false"
+            aria-controls="tab-records">我的记录</button>
+  </div>
+
+  <!-- ============ 用户信息 ============ -->
+  <section id="tab-profile" class="tab-panel" role="tabpanel">
+    <div class="card">
+      <div class="card-head">
+        <h1 class="card-title" id="uname">—</h1>
+        <span class="badge" id="roleBadge">用户</span>
+      </div>
+      <dl class="kv-h cols-5">
+        <div><dt>剩余额度</dt><dd id="quota" class="mono">—</dd></div>
+        <div><dt>累计使用</dt><dd id="used" class="mono">—</dd></div>
+        <div><dt>绑定邮箱</dt><dd id="emailNow">—</dd></div>
+        <div><dt>注册时间</dt><dd id="created">—</dd></div>
+        <div><dt>最近登录</dt><dd id="lastlogin">—</dd></div>
+      </dl>      <p class="hint account-foot" id="quotaHint">额度用于「生成太阳码 / 解析」，每次调接口或网页生成扣 1 次；卡密兑换也加到通用额度。</p>
+    </div>
+
+    <div class="card" id="emailCard" style="display:none">
+      <div class="card-head">
+        <h2 class="card-title">邮箱绑定</h2>
+        <div class="grow"></div>
+        <span class="badge" id="emailBadge">未绑定</span>
+      </div>
+      <p class="card-sub">绑定邮箱后，忘记密码可以用邮箱验证码重置；邮箱只用于身份验证，不会发送其它通知。</p>
+
+      <!-- 当前状态：一眼看出「已绑定什么 / 还没绑定」 -->
+      <div class="mail-state" id="emailState">
+        <div class="mail-state-ic" id="emailStateIc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.5" y="4.5" width="19" height="15" rx="2.4"/>
+            <path d="m3 6.5 9 6 9-6"/>
+          </svg>
+        </div>
+        <div class="mail-state-main">
+          <div class="mail-state-label" id="emailStateLabel">当前绑定邮箱</div>
+          <div class="mail-state-val mono" id="emailCurrent">—</div>
+        </div>
+        <div class="mail-state-act" id="emailStateAct" style="display:none">
+          <button class="btn btn-sm" id="emailChange" type="button">更换邮箱</button>
+          <button class="btn btn-sm btn-danger" id="emailUnbind" type="button">解绑</button>
+        </div>
+      </div>
+
+      <!-- 绑定流程：两步（填邮箱 → 填验证码） -->
+      <div class="mail-form" id="emailForm">
+        <div class="mail-step" id="emailStep1">
+          <span class="mail-step-no">1</span>
+          <div class="mail-step-body">
+            <label class="mail-label" for="emailInput">填写要绑定的邮箱</label>
+            <div class="mail-input-row">
+              <input class="input" id="emailInput" type="email" autocomplete="email" spellcheck="false"
+                     placeholder="you@example.com">
+              <button class="btn" id="emailSend" type="button">发送验证码</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mail-step" id="emailStep2" style="display:none">
+          <span class="mail-step-no">2</span>
+          <div class="mail-step-body">
+            <label class="mail-label" for="emailCode">输入收到的验证码</label>
+            <div class="mail-input-row">
+              <input class="input mono" id="emailCode" maxlength="6" inputmode="numeric"
+                     autocomplete="one-time-code" spellcheck="false" placeholder="6 位验证码">
+              <button class="btn btn-brand" id="emailConfirm" type="button">确认绑定</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint" id="emailHint">验证码 10 分钟内有效；发送后 60 秒内不能重复发送。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">修改密码</h2></div>
+      <div class="pwd-row">
+        <div class="field">
+          <label for="oldp">原密码</label>
+          <input class="input" id="oldp" type="password" autocomplete="current-password">
+        </div>
+        <div class="field">
+          <label for="newp">新密码（至少 6 位）</label>
+          <input class="input" id="newp" type="password" autocomplete="new-password">
+        </div>
+        <div class="pwd-act">
+          <button class="btn btn-brand" id="savePwd" type="button">保存新密码</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 卡密兑换 ============ -->
+  <section id="tab-redeem" class="tab-panel" role="tabpanel" hidden>
+    <div class="card redeem-card">
+      <div class="card-head">
+        <h2 class="card-title">卡密兑换</h2>
+        <span class="badge">通用额度</span>
+      </div>
+      <p class="card-sub">输入管理员发放的卡密，兑换后次数直接加到通用额度；一张卡只能兑换一次。</p>
+      <div class="row redeem-row">
+        <input class="input mono" id="redeemCode" type="text" autocomplete="off" spellcheck="false"
+               placeholder="WX-XXXX-XXXX-XXXX-XXXX" style="flex:1 1 18rem;text-transform:uppercase">
+        <button class="btn btn-brand" id="redeemBtn" type="button">立即兑换</button>
+      </div>
+      <p class="hint" id="redeemHint">兑换成功后，次数立即到账，可在「用户信息」里查看余额。</p>
+    </div>
+  </section>
+
+  <!-- ============ API Key ============ -->
+  <section id="tab-key" class="tab-panel" role="tabpanel" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">API Key</h2>
+        <div class="grow"></div>
+        <div class="row">
+          <button class="btn btn-sm" id="copyKey" type="button">复制</button>
+          <button class="btn btn-sm btn-danger" id="refreshKey" type="button">刷新 Key</button>
+        </div>
+      </div>
+      <p class="card-sub">调用接口时放在请求头 <code>X-API-Key</code>，或 <code>?key=</code>。</p>
+      <div class="key-row">
+        <div class="key-box">
+          <code id="key">—</code>
+        </div>
+        <p class="hint key-tip">API Key 等同于账号密码，请勿写进前端代码或提交到公开仓库；刷新后旧 Key 立即失效。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 我的记录 ============ -->
+  <section id="tab-records" class="tab-panel" role="tabpanel" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">我的记录</h2>
+        <div class="grow"></div>
+        <span class="hint" id="recTotal"></span>
+      </div>
+
+      <div class="toolbar" style="margin-bottom:.85rem">
+        <select class="input" id="kindFilter" style="width:7.5rem">
+          <option value="">全部类型</option>
+          <option value="gen">生成</option>
+          <option value="decode">解析</option>
+        </select>
+        <button class="btn" id="reload" type="button">刷新</button>
+        <a class="btn" href="/api/me/records/export" download="wxcode-records.csv">导出 CSV</a>
+        <button class="btn btn-danger" id="clearRecords" type="button">清空记录</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>时间</th><th>类型</th><th>来源</th><th>内容</th><th>规格</th><th>操作</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span class="info" id="recPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="recPageSize"></select></label>
+        <button class="btn" id="recPrev" type="button">上一页</button>
+        <button class="btn" id="recNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+const $ = s => document.querySelector(s);
+const themeKey = 'wxcode-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+}
+try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch(e){}
+$('#themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  try { localStorage.setItem(themeKey, t); } catch(e){}
+};
+// 统一走 layer.msg：原生 alert 的样式不受控，移动端还会阻塞渲染
+function toast(msg, bad){ layer.msg(msg, {error: !!bad}); }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opt || {}));
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if (!r.ok) { const e = new Error(d.error || ('HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
+  return d;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtTime = s => s ? new Date(s).toLocaleString('zh-CN', {hour12:false}) : '—';
+
+let me = null;
+let pubSettings = {};
+function applyMeUser(u) {
+  if (!u) return;
+  me = u;
+  $('#uname').textContent = me.username;
+  $('#quota').textContent = me.quota;
+  $('#used').textContent = me.quotaUsed;
+  $('#emailNow').textContent = me.email || '未绑定';
+  $('#emailNow').className = me.email ? 'mono' : 'hint';
+  $('#created').textContent = fmtTime(me.createdAt);
+  $('#lastlogin').textContent = fmtTime(me.lastLoginAt);
+  $('#key').textContent = me.apiKey;
+  if (me.status === 'banned') {
+    $('#roleBadge').textContent = '已封禁';
+    $('#roleBadge').className = 'badge bad';
+  } else if (me.role === 'admin') {
+    $('#roleBadge').textContent = '管理员';
+    $('#roleBadge').className = 'badge ok';
+    $('#adminLink').style.display = '';
+  } else {
+    $('#roleBadge').textContent = '用户';
+    $('#roleBadge').className = 'badge';
+  }
+}
+async function loadMe(){
+  const d = await api('/api/me');
+  if (!d.user) { location.href = '/login?next=/me'; return; }
+  pubSettings = d.settings || {};
+  applyMeUser(d.user);
+  applyEmailState(d.user);
+}
+
+// 邮箱绑定：只有「管理员开启邮箱验证」且「发信配置完整」时展示，
+// 否则入口整个隐藏（点了也发不出去，不如不出现）。
+let emailBound = false;      // 当前是否已绑定邮箱
+let emailChanging = false;   // 已绑定状态下是否展开「更换邮箱」表单
+
+function applyEmailState(u) {
+  const canUse = !!pubSettings.emailResetAvailable;
+  $('#emailCard').style.display = canUse ? '' : 'none';
+  if (!canUse) return;
+  const email = (u && u.email) || '';
+  emailBound = !!email;
+
+  $('#emailBadge').textContent = email ? '已绑定' : '未绑定';
+  $('#emailBadge').className = 'badge ' + (email ? 'ok' : '');
+
+  // 状态区：已绑定显示地址 + 操作按钮；未绑定显示引导文案
+  const state = $('#emailState');
+  state.classList.toggle('off', !email);
+  $('#emailStateLabel').textContent = email ? '当前绑定邮箱' : '尚未绑定邮箱';
+  $('#emailCurrent').textContent = email || '绑定后即可用邮箱验证码找回密码';
+  $('#emailCurrent').classList.toggle('mono', !!email);
+  $('#emailStateAct').style.display = email ? '' : 'none';
+
+  // 表单：未绑定时常驻；已绑定时按需展开
+  const showForm = !email || emailChanging;
+  $('#emailForm').style.display = showForm ? '' : 'none';
+  $('#emailStep1').classList.toggle('done', !!email);
+  // 验证码行只在「本次流程里发过码」时出现：
+  // 未绑定时每次进入都从第 1 步开始；已绑定且未展开表单时不显示
+  if (!email || !emailChanging) {
+    $('#emailStep2').style.display = 'none';
+    $('#emailCode').value = '';
+  }
+}
+
+function emailHint(text, bad) {
+  const h = $('#emailHint');
+  h.textContent = text;
+  h.style.color = bad ? 'var(--danger-ink)' : '';
+}
+
+let emailTimer = null;
+$('#emailSend').onclick = async () => {
+  const email = $('#emailInput').value.trim();
+  if (!email) { toast('请输入邮箱', true); $('#emailInput').focus(); return; }
+  const btn = $('#emailSend');
+  btn.disabled = true;
+  try {
+    const d = await api('/api/me/email/send', {method:'POST', body: JSON.stringify({email})});
+    $('#emailStep2').style.display = '';
+    $('#emailStep2').classList.add('active');
+    emailHint('验证码已发送到 ' + (d.email || email) + '，10 分钟内有效。');
+    toast('验证码已发送');
+    $('#emailCode').focus();
+    let left = d.retryIn || 60;
+    clearInterval(emailTimer);
+    btn.textContent = '重新发送（' + left + 's）';
+    emailTimer = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        clearInterval(emailTimer);
+        btn.disabled = false;
+        btn.textContent = '发送验证码';
+        return;
+      }
+      btn.textContent = '重新发送（' + left + 's）';
+    }, 1000);
+  } catch (e) {
+    toast(e.message, true);
+    btn.disabled = false;
+  }
+};
+
+$('#emailConfirm').onclick = async () => {
+  const email = $('#emailInput').value.trim();
+  const code = $('#emailCode').value.trim();
+  if (!code) { toast('请输入验证码', true); $('#emailCode').focus(); return; }
+  try {
+    const d = await api('/api/me/email/bind', {method:'POST', body: JSON.stringify({
+      email: email, code: code
+    })});
+    emailChanging = false;
+    if (d.user) applyMeUser(d.user);
+    applyEmailState(d.user);
+    $('#emailStep2').style.display = 'none';
+    $('#emailCode').value = '';
+    $('#emailInput').value = '';
+    emailHint('邮箱已绑定，忘记密码时可以用它接收验证码。');
+    toast('邮箱已绑定');
+  } catch (e) { toast(e.message, true); }
+};
+
+// 已绑定状态下点「更换邮箱」：展开表单，并把当前地址填进去方便对照
+$('#emailChange').onclick = () => {
+  emailChanging = !emailChanging;
+  if (emailChanging) {
+    $('#emailForm').style.display = '';
+    $('#emailInput').focus();
+    emailHint('验证新地址后即可覆盖当前邮箱，原地址会立即失效。');
+  } else {
+    $('#emailForm').style.display = 'none';
+    $('#emailStep2').style.display = 'none';
+    emailHint('验证码 10 分钟内有效；发送后 60 秒内不能重复发送。');
+  }
+};
+
+$('#emailUnbind').onclick = async () => {
+  const ok = await layer.confirm('解绑后无法使用邮箱找回密码，确定继续？', {
+    title: '解绑邮箱', okText: '解绑', danger: true
+  });
+  if (!ok) return;
+  const pwd = await layer.prompt('请输入当前密码以确认解绑', '', {
+    title: '解绑邮箱', inputType: 'password'
+  });
+  if (pwd === null) return;
+  try {
+    const d = await api('/api/me/email/unbind', {method:'POST', body: JSON.stringify({password: pwd})});
+    emailChanging = false;
+    if (d.user) applyMeUser(d.user);
+    applyEmailState(d.user);
+    $('#emailStep2').style.display = 'none';
+    emailHint('已解绑邮箱。');
+    toast('已解绑');
+  } catch (e) { toast(e.message, true); }
+};
+
+const REC_SIZES = [10, 20, 50, 100];
+const recState = {page: 0, size: 20};
+let recRows = [];          // 当前页数据：查看按钮只传下标，避免把内容塞进属性里
+(function initRecSize(){
+  const sel = $('#recPageSize');
+  if (!sel) return;
+  sel.innerHTML = REC_SIZES.map(n => '<option value="' + n + '">' + n + ' 条</option>').join('');
+  sel.value = String(recState.size);
+  sel.onchange = () => {
+    recState.size = parseInt(sel.value, 10) || 20;
+    recState.page = 0;
+    loadRecords().catch(e => toast(e.message, true));
+  };
+})();
+
+function specOf(r) {
+  try {
+    const d = JSON.parse(r.detail || '{}');
+    return r.kind === 'gen'
+      ? ('v' + d.version + '/' + d.level + ' mask ' + d.mask)
+      : ('v' + d.version + '/' + d.ecLevel + ' mask ' + d.mask);
+  } catch (e) { return ''; }
+}
+
+function showRecord(r) {
+  const meta = [fmtTime(r.createdAt), r.kind === 'gen' ? '生成' : '解析',
+    r.source === 'api' ? 'API' : '网页', specOf(r)].filter(Boolean).join(' · ');
+  layer.view('记录内容', r.payload, { meta: meta });
+}
+
+async function loadRecords(page){
+  if (typeof page === 'number') recState.page = Math.max(0, page);
+  const kind = $('#kindFilter').value;
+  const d = await api('/api/me/records?limit=' + recState.size + '&offset=' + (recState.page * recState.size) +
+    (kind ? '&kind=' + encodeURIComponent(kind) : ''));
+  const rows = d.items || [];
+  const total = d.total || 0;
+  const pages = Math.max(1, Math.ceil(total / recState.size));
+  if (recState.page >= pages) { recState.page = pages - 1; return loadRecords(); }
+
+  $('#recTotal').textContent = '共 ' + total + ' 条';
+  $('#recPageInfo').textContent = '第 ' + (recState.page + 1) + ' / ' + pages + ' 页 · 共 ' +
+    total + ' 条 · 本页 ' + rows.length + ' 条';
+  $('#recPrev').disabled = recState.page <= 0;
+  $('#recNext').disabled = recState.page >= pages - 1;
+
+  if (!rows.length) { $('#rows').innerHTML = '<tr><td colspan="6" class="empty">还没有记录</td></tr>'; return; }
+  recRows = rows;
+  $('#rows').innerHTML = rows.map((r, i) => {
+    const full = String(r.payload == null ? '' : r.payload);
+    // 表格宽度有限，长内容在小屏上一定会被裁掉，所以每行都给「查看」
+    // （点开是完整内容 + 元信息，还能一键复制）
+    return '<tr><td class="num">' + fmtTime(r.createdAt) + '</td>' +
+      '<td>' + (r.kind === 'gen' ? '生成' : '解析') + '</td>' +
+      '<td>' + (r.source === 'api' ? 'API' : '网页') + '</td>' +
+      '<td class="clip"><span class="clip-text" title="' + esc(full) + '">' +
+        esc(full.slice(0, 60)) + (full.length > 60 ? '…' : '') + '</span>' +
+        '<button class="btn btn-view" type="button" data-view="' + i + '">查看</button>' +
+      '</td>' +
+      '<td class="num">' + esc(specOf(r)) + '</td>' +
+      '<td><button class="btn btn-view btn-del" type="button" data-del="' + i + '">删除</button></td></tr>';
+  }).join('');
+}
+
+// 点击「查看」：弹层显示完整内容（可选中、可复制）
+$('#rows').onclick = async ev => {
+  const del = ev.target.closest('button[data-del]');
+  if (del) {
+    const r = recRows[parseInt(del.dataset.del, 10)];
+    if (!r) return;
+    const ok = await layer.confirm('删除这条记录后无法恢复，确定继续？', {
+      title: '删除记录', okText: '删除', danger: true
+    });
+    if (!ok) return;
+    try {
+      await api('/api/me/records/' + encodeURIComponent(r.id), {method: 'DELETE'});
+      toast('记录已删除');
+      loadRecords();
+    } catch (e) { toast(e.message, true); }
+    return;
+  }
+  const b = ev.target.closest('button[data-view]');
+  if (!b) return;
+  const r = recRows[parseInt(b.dataset.view, 10)];
+  if (r) showRecord(r);
+};
+
+$('#clearRecords').onclick = async () => {
+  const ok = await layer.confirm('清空后无法恢复。只删除你自己的生成 / 解析记录，不影响账号与额度。', {
+    title: '清空全部记录', okText: '全部清空', danger: true
+  });
+  if (!ok) return;
+  try {
+    const d = await api('/api/me/records', {method: 'DELETE'});
+    toast('已清空 ' + (d.deleted || 0) + ' 条记录');
+    loadRecords(0);
+  } catch (e) { toast(e.message, true); }
+};
+
+$('#copyKey').onclick = async () => {
+  try { await navigator.clipboard.writeText(me.apiKey); toast('已复制'); }
+  catch(e){ toast('复制失败，请手动选中复制', true); }
+};
+
+$('#refreshKey').onclick = async () => {
+  const ok = await layer.confirm('刷新后旧 Key 立即失效，正在用它的程序需要同步换成新 Key。', {
+    title: '刷新 API Key', okText: '立即刷新'
+  });
+  if (!ok) return;
+  try {
+    const d = await api('/api/me/key', {method:'POST'});
+    me.apiKey = d.apiKey; $('#key').textContent = d.apiKey;
+    layer.msg('已生成新 Key');
+  } catch(e){ layer.msg(e.message, {error: true}); }
+};
+
+async function doRedeem() {
+  const input = $('#redeemCode');
+  const btn = $('#redeemBtn');
+  const hint = $('#redeemHint');
+  const code = input.value.trim().toUpperCase();
+  if (!code) { toast('请输入卡密', true); input.focus(); return; }
+  btn.disabled = true;
+  hint.textContent = '正在兑换…';
+  try {
+    const d = await api('/api/me/redeem', {method: 'POST', body: JSON.stringify({code: code})});
+    if (d.user) applyMeUser(d.user);
+    input.value = '';
+    hint.textContent = '已兑换 ' + d.amount + ' 次额度，余额已更新。';
+    toast('兑换成功：+' + d.amount + ' 次额度');
+  } catch (e) {
+    hint.textContent = e.message;
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+$('#redeemBtn').onclick = doRedeem;
+$('#redeemCode').onkeydown = ev => {
+  if (ev.key === 'Enter') { ev.preventDefault(); doRedeem(); }
+};
+$('#redeemCode').oninput = ev => {
+  const pos = ev.target.selectionStart;
+  ev.target.value = ev.target.value.toUpperCase();
+  try { ev.target.setSelectionRange(pos, pos); } catch (e) {}
+};
+
+$('#savePwd').onclick = async () => {
+  try {
+    await api('/api/me/password', {method:'POST', body: JSON.stringify({
+      oldPassword: $('#oldp').value, newPassword: $('#newp').value
+    })});
+    $('#oldp').value = ''; $('#newp').value = '';
+    toast('密码已更新');
+  } catch(e){ toast(e.message, true); }
+};
+
+$('#logout').onclick = async () => {
+  await api('/api/logout', {method:'POST'});
+  location.href = '/';
+};
+$('#reload').onclick = () => loadRecords().catch(e => toast(e.message, true));
+$('#recPrev').onclick = () => loadRecords(recState.page - 1).catch(e => toast(e.message, true));
+$('#recNext').onclick = () => loadRecords(recState.page + 1).catch(e => toast(e.message, true));
+$('#kindFilter').onchange = () => loadRecords(0).catch(e => toast(e.message, true));
+
+// ---------- 标签页：用户信息 / 我的记录 ----------
+// 记录默认不请求：切到「我的记录」才拉，省掉一次没必要的接口调用。
+const TAB_KEYS = ['profile', 'redeem', 'key', 'records'];
+function switchTab(key, keepURL) {
+  document.querySelectorAll('.me-page .tab').forEach(t => {
+    const on = t.dataset.tab === key;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('.me-page .tab-panel').forEach(p => {
+    p.hidden = p.id !== 'tab-' + key;
+  });
+  if (!keepURL) {
+    try {
+      // 用户信息用干净地址，其余 tab 用 #keys / #records，刷新后停在原地
+      history.replaceState(null, '', key === 'profile' ? location.pathname : '#' + key);
+    } catch (e) { /* file:// 之类不支持就算了 */ }
+  }
+  if (key === 'records') loadRecords().catch(e => toast(e.message, true));
+}
+document.querySelectorAll('.me-page .tab').forEach(t => {
+  t.onclick = () => switchTab(t.dataset.tab);
+});
+// 手改地址栏 hash、或从别处点 /me#records 进来时同步切换（同文档跳转不会重载页面）
+window.addEventListener('hashchange', () => {
+  const k = (location.hash || '').replace('#', '');
+  if (TAB_KEYS.indexOf(k) >= 0) switchTab(k, true);
+});
+
+(async () => {
+  try {
+    await loadMe();
+    // 支持 /me#keys、/me#records 直达；其余（含未知 hash）停在「用户信息」
+    const want = (location.hash || '').replace('#', '');
+    switchTab(TAB_KEYS.indexOf(want) >= 0 ? want : 'profile', true);
+  } catch(e){ toast(e.message, true); }
+})();
+</script>
+</body>
+</html>

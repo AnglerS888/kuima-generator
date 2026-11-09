@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2f6bff">
+<title>登录 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+</head>
+<body class="narrow-page">
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}</a>
+    <div class="grow"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap narrow">
+  <div class="card">
+    <div class="card-head"><h1 class="card-title">登录</h1></div>
+    <p class="card-sub" id="sub">没有账号？<a href="/register">去注册</a></p>
+
+    <form id="form" autocomplete="on">
+      <div class="field">
+        <label for="u">用户名</label>
+        <input class="input" id="u" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="p">密码</label>
+        <input class="input" id="p" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="field" style="margin-top:-.35rem;text-align:right">
+        <a href="/forgot" style="font-size:.78rem">忘记密码？</a>
+      </div>
+      <div class="field" id="captchaField">
+        <label for="captcha">验证码</label>
+        <div class="captcha-row">
+          <input class="input" id="captcha" maxlength="6" autocomplete="off" spellcheck="false" required
+                 placeholder="输入图片中的数字">
+          <button class="captcha-img" id="captchaBtn" type="button" aria-label="刷新验证码" title="点击刷新验证码">
+            <img id="captchaImg" alt="验证码">
+          </button>
+        </div>
+        <div class="hint">看不清？点击图片换一张</div>
+      </div>
+      <div id="msg" class="hint"></div>
+      <button class="btn btn-brand btn-block" id="submit" type="submit">登录</button>
+    </form>
+  </div>
+  <p class="hint" style="text-align:center;margin-top:1rem"><a href="/">← 返回首页</a></p>
+</main>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+const $ = s => document.querySelector(s);
+const themeKey = 'wxcode-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+}
+try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch(e){}
+$('#themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  try { localStorage.setItem(themeKey, t); } catch(e){}
+};
+// 统一走 layer.msg：原生 alert 的样式不受控，移动端还会阻塞渲染
+function toast(msg, bad){ layer.msg(msg, {error: !!bad}); }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opt || {}));
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if (!r.ok) { const e = new Error(d.error || ('HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
+  return d;
+}
+
+let captchaId = '';
+let captchaOn = true;
+async function refreshCaptcha() {
+  if (!captchaOn) return;
+  try {
+    const d = await api('/api/captcha');
+    captchaId = d.id;
+    $('#captchaImg').src = d.image;
+    $('#captcha').value = '';
+  } catch (e) {
+    toast('验证码加载失败，请刷新页面', true);
+  }
+}
+async function initCaptcha() {
+  try {
+    const d = await api('/api/me');
+    captchaOn = !d.settings || d.settings.captchaEnabled !== false;
+  } catch (e) { /* 取不到配置时按开启处理 */ }
+  if (!captchaOn) {
+    $('#captchaField').style.display = 'none';
+    $('#captcha').required = false;
+    captchaId = '';
+    return;
+  }
+  refreshCaptcha();
+}
+$('#captchaBtn').onclick = refreshCaptcha;
+initCaptcha();
+
+// 被 /me 或生成接口踢过来时，登录后送回原处。
+// 只接受本站相对路径：next 若是完整 URL 或 "//host" 开头，就是拿登录页做开放重定向的跳板。
+const rawNext = new URLSearchParams(location.search).get('next') || '';
+const next = (rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.includes('\\')) ? rawNext : '';
+
+$('#form').onsubmit = async ev => {
+  ev.preventDefault();
+  const btn = $('#submit'); btn.disabled = true; $('#msg').textContent = '';
+  try {
+    const d = await api('/api/login', {method:'POST', body: JSON.stringify({
+      username: $('#u').value.trim(), password: $('#p').value,
+      captchaId: captchaId, captchaCode: $('#captcha').value.trim()
+    })});
+    const isAdmin = d.user && d.user.role === 'admin';
+    location.href = next || (isAdmin ? '/admin' : '/me');
+  } catch (e) {
+    // 报错统一走弹窗，页面里不再显示行内红字
+    toast(e.message || '登录失败', true);
+    if (captchaOn) refreshCaptcha();
+    if (captchaOn && e.message && e.message.indexOf('验证码') >= 0) $('#captcha').focus();
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

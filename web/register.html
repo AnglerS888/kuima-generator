@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2f6bff">
+<title>注册 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+</head>
+<body class="narrow-page">
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}</a>
+    <div class="grow"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap narrow">
+  <div class="card">
+    <div class="card-head"><h1 class="card-title">注册</h1><span class="badge" id="modeBadge">开放注册</span></div>
+    <p class="card-sub">已有账号？<a href="/login">去登录</a></p>
+
+    <div id="closed" class="note bad" style="display:none">管理员已关闭注册，请联系站长开通账号。</div>
+    <div id="notice" class="note warn" style="display:none"></div>
+
+    <form id="form">
+      <div class="field">
+        <label for="u">用户名</label>
+        <input class="input" id="u" autocomplete="username" required>
+        <div class="hint">3~32 位，仅字母、数字、下划线、中划线</div>
+      </div>
+      <div class="field">
+        <label for="p">密码</label>
+        <input class="input" id="p" type="password" autocomplete="new-password" required>
+        <div class="hint">至少 6 位</div>
+      </div>
+      <div class="field">
+        <label for="p2">确认密码</label>
+        <input class="input" id="p2" type="password" autocomplete="new-password" required>
+      </div>
+      <div class="field" id="emailField" style="display:none">
+        <label for="email">邮箱</label>
+        <div class="captcha-row">
+          <input class="input" id="email" type="email" autocomplete="email" spellcheck="false"
+                 placeholder="you@example.com">
+          <button class="btn" id="sendEmailCode" type="button" style="flex:0 0 auto">发送验证码</button>
+        </div>
+        <div class="hint">管理员已开启邮箱验证：需完成验证才能注册，注册后也可直接用邮箱登录。</div>
+      </div>
+      <div class="field" id="emailCodeField" style="display:none">
+        <label for="emailCode">邮箱验证码</label>
+        <input class="input mono" id="emailCode" maxlength="6" inputmode="numeric"
+               autocomplete="one-time-code" spellcheck="false" placeholder="6 位数字">
+        <div class="hint" id="emailHint">验证码 10 分钟内有效，发送后 60 秒内不能重复发送。</div>
+      </div>
+      <div class="field" id="inviteField" style="display:none">
+        <label for="code">邀请码</label>
+        <input class="input" id="code" placeholder="向站长索取" autocomplete="off">
+      </div>
+      <div class="field" id="captchaField">
+        <label for="captcha">验证码</label>
+        <div class="captcha-row">
+          <input class="input" id="captcha" maxlength="6" autocomplete="off" spellcheck="false" required
+                 placeholder="输入图片中的数字">
+          <button class="captcha-img" id="captchaBtn" type="button" aria-label="刷新验证码" title="点击刷新验证码">
+            <img id="captchaImg" alt="验证码">
+          </button>
+        </div>
+        <div class="hint">看不清？点击图片换一张</div>
+      </div>
+      <div id="msg" class="hint"></div>
+      <button class="btn btn-brand btn-block" id="submit" type="submit">注册并登录</button>
+    </form>
+  </div>
+  <p class="hint" style="text-align:center;margin-top:1rem"><a href="/">← 返回首页</a></p>
+</main>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+const $ = s => document.querySelector(s);
+const themeKey = 'wxcode-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+}
+try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch(e){}
+$('#themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  try { localStorage.setItem(themeKey, t); } catch(e){}
+};
+// 统一走 layer.msg：原生 alert 的样式不受控，移动端还会阻塞渲染
+function toast(msg, bad){ layer.msg(msg, {error: !!bad}); }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opt || {}));
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if (!r.ok) { const e = new Error(d.error || ('HTTP ' + r.status)); e.status = r.status; e.data = d; throw e; }
+  return d;
+}
+
+let captchaId = '';
+let captchaOn = true;
+async function refreshCaptcha() {
+  if (!captchaOn) return;
+  try {
+    const d = await api('/api/captcha');
+    captchaId = d.id;
+    $('#captchaImg').src = d.image;
+    $('#captcha').value = '';
+  } catch (e) {
+    toast('验证码加载失败，请刷新页面', true);
+  }
+}
+async function initCaptcha() {
+  try {
+    const d = await api('/api/me');
+    captchaOn = !d.settings || d.settings.captchaEnabled !== false;
+  } catch (e) { /* 取不到配置时按开启处理 */ }
+  if (!captchaOn) {
+    $('#captchaField').style.display = 'none';
+    $('#captcha').required = false;
+    captchaId = '';
+    return;
+  }
+  refreshCaptcha();
+}
+$('#captchaBtn').onclick = refreshCaptcha;
+initCaptcha();
+
+// 先问一下服务端当前注册策略，再决定显不显示邀请码 / 邮箱字段 / 能不能提交
+let emailRequired = false;
+(async () => {
+  try {
+    const d = await api('/api/me');
+    const st = d.settings || {};
+    if (!st.registerOpen) {
+      $('#closed').style.display = '';
+      $('#form').style.display = 'none';
+      $('#modeBadge').textContent = '已关闭';
+      $('#modeBadge').className = 'badge bad';
+      return;
+    }
+
+    emailRequired = !!st.registerEmailRequired;
+    if (emailRequired && !st.emailRegisterAvailable) {
+      // 开关开着但发信配置不完整：与其让用户填完再失败，不如直接说明并禁止提交
+      $('#notice').textContent = '管理员已开启邮箱验证注册，但发信配置不完整，暂时无法注册，请联系站长。';
+      $('#notice').style.display = '';
+      $('#form').style.display = 'none';
+      $('#modeBadge').textContent = '配置未完成';
+      $('#modeBadge').className = 'badge bad';
+      return;
+    }
+
+    if (st.inviteRequired) {
+      $('#inviteField').style.display = '';
+    }
+    if (emailRequired) {
+      $('#emailField').style.display = '';
+      $('#emailCodeField').style.display = '';
+      $('#email').required = true;
+      $('#emailCode').required = true;
+      $('#modeBadge').textContent = st.inviteRequired ? '邀请码 + 邮箱验证' : '邮箱验证注册';
+      $('#modeBadge').className = 'badge warn';
+    } else if (st.inviteRequired) {
+      $('#modeBadge').textContent = '邀请码注册';
+      $('#modeBadge').className = 'badge warn';
+    }
+  } catch(e) {
+    // 拿不到配置就别让用户瞎填：提示刷新，避免服务端要求邮箱验证时页面上却没有邮箱输入框
+    $('#notice').textContent = '暂时无法获取注册配置，请刷新页面后重试。';
+    $('#notice').style.display = '';
+  }
+})();
+
+// 发送邮箱验证码：成功后 60 秒倒计时，防止用户狂点
+let emailTimer = null;
+$('#sendEmailCode').onclick = async () => {
+  const email = $('#email').value.trim();
+  if (!email) { toast('请输入邮箱', true); $('#email').focus(); return; }
+  const btn = $('#sendEmailCode');
+  btn.disabled = true;
+  try {
+    const d = await api('/api/register/email/send', {method:'POST', body: JSON.stringify({email})});
+    $('#emailHint').textContent = '验证码已发送到 ' + (d.email || email) + '，10 分钟内有效。';
+    toast('验证码已发送');
+    $('#emailCode').focus();
+    let left = d.retryIn || 60;
+    clearInterval(emailTimer);
+    btn.textContent = '重新发送（' + left + 's）';
+    emailTimer = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        clearInterval(emailTimer);
+        btn.disabled = false;
+        btn.textContent = '发送验证码';
+        return;
+      }
+      btn.textContent = '重新发送（' + left + 's）';
+    }, 1000);
+  } catch (e) {
+    toast(e.message, true);
+    btn.disabled = false;
+  }
+};
+
+$('#form').onsubmit = async ev => {
+  ev.preventDefault();
+  const p = $('#p').value, p2 = $('#p2').value;
+  if (p !== p2) { toast('两次输入的密码不一致', true); return; }
+  const email = $('#email').value.trim();
+  const emailCode = $('#emailCode').value.trim();
+  if (emailRequired) {
+    if (!email) { toast('请输入邮箱', true); $('#email').focus(); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('邮箱格式不正确', true); $('#email').focus(); return; }
+    if (!emailCode) { toast('请输入邮箱验证码', true); $('#emailCode').focus(); return; }
+  }
+  const btn = $('#submit'); btn.disabled = true; $('#msg').textContent = '';
+  try {
+    const payload = {
+      username: $('#u').value.trim(),
+      password: p,
+      inviteCode: $('#code').value.trim(),
+      captchaId: captchaId,
+      captchaCode: $('#captcha').value.trim()
+    };
+    if (emailRequired) {
+      payload.email = email;
+      payload.emailCode = emailCode;
+    }
+    await api('/api/register', {method:'POST', body: JSON.stringify(payload)});
+    location.href = '/me';
+  } catch (e) {
+    // 报错统一走弹窗，页面里不再显示行内红字
+    toast(e.message || '注册失败', true);
+    if (captchaOn) refreshCaptcha();
+    if (captchaOn && e.message && e.message.indexOf('验证码') >= 0) $('#captcha').focus();
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

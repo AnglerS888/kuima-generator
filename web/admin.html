@@ -1,0 +1,1901 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2f6bff">
+<meta name="robots" content="noindex,nofollow">
+<title>管理后台 · {{SITE_NAME}}</title>
+<link rel="icon" href="/icon.png?v={{ICON_V}}">
+<link rel="stylesheet" href="/auth.css?v={{ASSET_V}}">
+</head>
+<body class="admin-page">
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="/"><img class="brand-mark" src="/icon.png?v={{ICON_V}}" alt="" width="27" height="27">{{SITE_NAME}}<span class="brand-sub"> · 管理后台</span></a>
+    <div class="grow"></div>
+    <a class="link-btn" href="/">首页</a>
+    <a class="link-btn" href="/me">我的</a>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="切换白天/黑夜" title="白天 / 黑夜">
+      <svg class="ic-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+      </svg>
+      <svg class="ic-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/>
+      </svg>
+    </button>
+    <button class="link-btn" id="logout" type="button">退出</button>
+  </div>
+</header>
+
+<main class="wrap admin-main">
+  <!-- 页面头部：标题 + 说明随标签页切换，手机上也能立刻知道自己在哪 -->
+  <div class="admin-head">
+    <div class="admin-head-main">
+      <h1 class="admin-head-title" id="pageTitle">概览</h1>
+      <p class="admin-head-sub" id="pageDesc">站点运行状态、全局配置与站点信息</p>
+    </div>
+    <div class="grow"></div>
+    <span class="badge" id="pageBadge" style="display:none"></span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="后台导航">
+    <button class="tab active" data-tab="overview" role="tab" aria-selected="true">概览</button>
+    <button class="tab" data-tab="config" role="tab" aria-selected="false">配置</button>
+    <button class="tab" data-tab="users" role="tab" aria-selected="false">用户</button>
+    <button class="tab" data-tab="records" role="tab" aria-selected="false">记录</button>
+    <button class="tab" data-tab="preset" role="tab" aria-selected="false">预设LOGO</button>
+    <button class="tab" data-tab="invites" role="tab" aria-selected="false">邀请码</button>
+    <button class="tab" data-tab="cards" role="tab" aria-selected="false">卡密</button>
+    <button class="tab" data-tab="blacklist" role="tab" aria-selected="false">黑名单</button>
+    <button class="tab" data-tab="mail" role="tab" aria-selected="false">邮箱</button>
+  </div>
+
+  <!-- 概览 -->
+  <section id="tab-overview" class="tab-panel">
+    <div class="stats">
+      <div class="stat"><div class="k">用户数</div><div class="v" id="st-users">—</div></div>
+      <div class="stat"><div class="k">记录总数</div><div class="v" id="st-total">—</div></div>
+      <div class="stat"><div class="k">生成 / 解析</div><div class="v" id="st-split">—</div></div>
+      <div class="stat"><div class="k">今日调用</div><div class="v" id="st-today">—</div></div>
+      <div class="stat"><div class="k">数据库大小</div><div class="v" id="st-dbsize">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">系统信息</h2><span class="badge">仅管理员可见</span></div>
+      <dl class="kv-h cols-4">
+        <div><dt>服务版本</dt><dd id="sys-version" class="mono">—</dd></div>
+        <div><dt>Go 版本</dt><dd id="sys-go" class="mono">—</dd></div>
+        <div><dt>运行平台</dt><dd id="sys-platform" class="mono">—</dd></div>
+        <div><dt>CPU / Goroutine</dt><dd id="sys-cpu" class="mono">—</dd></div>
+        <div><dt>启动时间</dt><dd id="sys-started" class="mono">—</dd></div>
+        <div><dt>已运行</dt><dd id="sys-uptime" class="mono">—</dd></div>
+        <div><dt>内存占用（堆 / 系统）</dt><dd id="sys-mem" class="mono">—</dd></div>
+        <div><dt>数据库大小</dt><dd id="sys-dbsize" class="mono">—</dd></div>
+      </dl>
+      <p class="hint">数据库大小含 WAL / SHM 文件，每次打开概览时刷新。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">当前状态</h2><span class="badge">实时</span></div>
+      <dl class="kv-h cols-5">
+        <div><dt>服务版本</dt><dd id="st-ver" class="mono">—</dd></div>
+        <div><dt>注册方式</dt><dd id="st-reg">—</dd></div>
+        <div><dt>使用策略</dt><dd id="st-usage">—</dd></div>
+        <div><dt>默认额度</dt><dd id="st-quota" class="mono">—</dd></div>
+        <div><dt>记录构成</dt><dd id="st-mix" class="mono">—</dd></div>
+      </dl>
+      <dl class="kv-h cols-3">
+        <div><dt>日志级别</dt><dd id="st-log-level" class="mono">—</dd></div>
+        <div><dt>日志格式</dt><dd id="st-log-format" class="mono">—</dd></div>
+        <div><dt>访问日志</dt><dd id="st-log-access" class="mono">—</dd></div>
+      </dl>
+      <p class="hint">
+        日志只写 stdout / stderr，用 <code>docker logs wxcode</code> 查看；
+        级别、格式、输出流由环境变量 <code>LOG_LEVEL</code> / <code>LOG_FORMAT</code> / <code>LOG_OUTPUT</code> 控制，改完需重启容器。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">数据备份</h2>
+        <div class="grow"></div>
+        <span class="badge">全站数据</span>
+      </div>
+      <p class="card-sub">
+        备份包含数据库里的全部内容：用户、记录、邀请码、卡密、站点设置、公告、水印配置等
+        （站点图标也以 base64 存在库里），导出的是 SQLite 一致性快照并打包成 zip。
+      </p>
+      <div class="grid two site-grid">
+        <div class="site-field">
+          <div class="label">导出备份</div>
+          <div class="toolbar">
+            <a class="btn btn-brand" href="/api/admin/backup/export">导出 .zip</a>
+            <span class="hint">文件名带时间戳</span>
+          </div>
+          <p class="hint">
+            包内含 <code>manifest.json</code>（版本与导出时间）与 <code>wxcode.db</code>，
+            建议定期下载存档；备份里有密码哈希与 API Key，请妥善保管。
+          </p>
+        </div>
+        <div class="site-field">
+          <div class="label">导入备份（覆盖现有数据）</div>
+          <div class="toolbar" style="flex-wrap:wrap;gap:.5rem">
+            <input type="file" class="input" id="backupFile" accept=".zip,application/zip"
+                   style="max-width:15rem;padding:.35rem .5rem">
+            <button class="btn" id="backupImport" type="button">导入并覆盖</button>
+          </div>
+          <p class="hint">
+            只能上传本站导出的 zip。导入会<strong>整体替换</strong>当前数据库，原有数据不可恢复；
+            当前登录会话通常也会失效，需要重新登录。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 配置 -->
+  <section id="tab-config" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">配置</h2><span class="badge">保存后立即生效</span></div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-title">访问控制</div>
+        <div class="switch">
+          <div><div class="label">开放注册</div><div class="desc">关闭后只有管理员能建号</div></div>
+          <label class="tgl"><input type="checkbox" id="setRegisterOpen"><span></span></label>
+        </div>
+        <div class="switch">
+          <div><div class="label">注册需要邀请码</div><div class="desc">开启后注册必须填写有效邀请码</div></div>
+          <label class="tgl"><input type="checkbox" id="setInviteRequired"><span></span></label>
+        </div>
+        <div class="switch">
+          <div><div class="label">使用需要登录</div><div class="desc">开启后生成 / 解码 / 好友码都必须登录，且每次扣 1 次额度；关闭时匿名可用、不扣额度，但每次都会记录（用户显示「未知用户」）</div></div>
+          <label class="tgl"><input type="checkbox" id="setRequireLogin"><span></span></label>
+        </div>
+        <div class="switch">
+          <div><div class="label">登录 / 注册验证码</div><div class="desc">关闭后登录、注册页面不再显示验证码；建议保持开启，防止撞库和批量注册</div></div>
+          <label class="tgl"><input type="checkbox" id="setCaptchaEnabled"><span></span></label>
+        </div>
+        <div class="switch">
+          <div><div class="label">新用户默认额度</div><div class="desc">只影响之后新建的账号</div></div>
+          <input class="input mono num" id="setQuota" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-title">记录与隐私</div>
+        <div class="switch">
+          <div><div class="label">保存生成 / 解析历史</div><div class="desc">关闭后不再写新记录；已有记录仍可在「记录」里清理</div></div>
+          <label class="tgl"><input type="checkbox" id="setRecordEnabled"><span></span></label>
+        </div>
+        <div class="switch">
+          <div><div class="label">记录内容保存方式</div><div class="desc">原文便于排查；哈希保留去重能力但不可还原；不存内容最保护隐私</div></div>
+          <select class="input sel" id="setRecordPayloadMode">
+            <option value="full">保存原文</option>
+            <option value="hash">只存哈希</option>
+            <option value="none">不存内容</option>
+          </select>
+        </div>
+        <div class="switch">
+          <div><div class="label">记录保留天数</div><div class="desc">生成 / 解析记录保留多久，0 = 永久保留。超期的记录每 6 小时自动清一次</div></div>
+          <input class="input mono num" id="setRetentionDays" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-title">上传大小上限</div>
+        <div class="mini-grid">
+          <div class="mini-item">
+            <div class="hint">未登录 · logo</div>
+            <input class="input mono num" id="setAnonLogo" inputmode="numeric">
+          </div>
+          <div class="mini-item">
+            <div class="hint">已登录 · logo</div>
+            <input class="input mono num" id="setUserLogo" inputmode="numeric">
+          </div>
+          <div class="mini-item">
+            <div class="hint">未登录 · 解析图片</div>
+            <input class="input mono num" id="setAnonImage" inputmode="numeric">
+          </div>
+          <div class="mini-item">
+            <div class="hint">已登录 · 解析图片</div>
+            <input class="input mono num" id="setUserImage" inputmode="numeric">
+          </div>
+        </div>
+        <p class="cfg-group-note">
+          单位 KB。中心 logo = 生成时上传的图片；解析图片 = 解码 / 好友码上传的图片。
+          填 0 恢复默认（logo 8MB、解析 24MB）。
+        </p>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar">
+          <button class="btn btn-brand" id="saveSettings" type="button">保存配置</button>
+          <span class="hint">保存后立即生效，无需重启服务</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">站点设置</h2><span class="badge">保存后立即生效</span></div>
+      <div class="grid two site-grid">
+        <div class="site-field">
+          <div class="label">站点名称</div>
+          <input class="input" id="setSiteName" style="width:100%" placeholder="葵码生成器">
+          <p class="hint">用于页面标题、导航栏和后台标题，最多 40 字</p>
+        </div>
+
+        <div class="site-field">
+          <div class="label">站点图标</div>
+          <div class="icon-row">
+            <img id="iconPreview" src="/icon.png" alt="站点图标" width="56" height="56"
+                 style="width:56px;height:56px;border-radius:12px;border:1px solid var(--line);object-fit:cover;background:var(--panel-2)">
+            <button class="btn" id="pickIcon" type="button">上传新图标</button>
+            <button class="btn btn-ghost" id="resetIcon" type="button">恢复默认</button>
+            <input type="file" id="iconFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          </div>
+          <p class="hint">建议正方形；上传后会自动居中裁切并缩成 256×256 PNG（≤512KB）</p>
+        </div>
+
+        <div class="site-field">
+          <div class="label">搜索关键词</div>
+          <input class="input" id="setKeywords" style="width:100%"
+                 placeholder="太阳码, 葵花码, 微信小程序码, 二维码生成">
+          <p class="hint">
+            写进每个页面 <code>&lt;meta name="keywords"&gt;</code>，逗号分隔，最多 200 字；留空则不输出该标签。
+          </p>
+        </div>
+
+        <div class="site-field">
+          <div class="label">跨域来源白名单（CORS）</div>
+          <input class="input" id="setCorsOrigins" style="width:100%"
+                 placeholder="https://your-site.com, https://another.com">
+          <p class="hint">
+            允许哪些网站从浏览器里调用本站接口，逗号分隔；留空 = 不允许跨域。
+            填 <code>*</code> 表示全部放开（<strong>慎用</strong>：等于把接口暴露给任意站点）。
+            只有显式列出的来源会被放行，其它来源的请求照常返回，但没有跨域许可头。
+          </p>
+        </div>
+
+        <div class="site-field span-2">
+          <div class="label">网站公告</div>
+          <textarea class="input" id="setAnnounce" rows="3"
+            style="width:100%;resize:vertical;line-height:1.6"
+            placeholder="例如：本站免费使用，禁止生成违法违规内容。&#10;支持换行，留空则不显示。"></textarea>
+          <p class="hint">显示在每个页面顶部（导航栏下方），纯文本、支持换行，最多 500 字。</p>
+        </div>
+
+        <div class="site-field span-2">
+          <div class="label">底部统计代码</div>
+          <textarea class="input mono" id="setFooter" rows="4" spellcheck="false"
+            style="width:100%;resize:vertical;font-size:.78rem;line-height:1.5"
+            placeholder="粘贴 51.la / 百度统计 / Umami / Google Analytics 的 &lt;script&gt; 片段，留空则不注入"></textarea>
+          <p class="hint">
+            原样插入到每个页面 <code>&lt;/body&gt;</code> 之前。填了之后会放行外部脚本
+            （CSP 额外允许 <code>https:</code>），留空则保持封闭。
+          </p>
+        </div>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar">
+          <button class="btn btn-brand" id="saveSite" type="button">保存站点设置</button>
+          <span class="hint">站点名称与公告改动后需要刷新页面才能看到</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">生成码水印</h2>
+        <div class="grow"></div>
+        <span class="badge" id="wmStatus">未开启</span>
+      </div>
+      <p class="card-sub">
+        「水印全局配置」决定<strong>谁能改水印、前端是否展示水印设置</strong>。
+        只有选「管理员全局配置」时才需要设置下面的默认水印——该模式下前端不展示水印设置，
+        所有生成的图都会强制套用它。
+      </p>
+      <div class="grid two site-grid">
+        <div class="site-field span-2">
+          <div class="label">水印全局配置</div>
+          <select class="input" id="wmMode" style="width:100%">
+            <option value="none">无水印（前端不显示水印配置）</option>
+            <option value="all">所有人可以配置（前端显示，所有人都能改）</option>
+            <option value="user">登录用户可以配置（前端显示，未登录开关禁用且关闭）</option>
+            <option value="admin">管理员全局配置（前端不显示，所有图片自动加水印）</option>
+          </select>
+          <p class="hint" id="wmModeHint">生成的码不加水印，前端也不展示水印设置。</p>
+        </div>
+
+        <div class="site-field wm-detail">
+          <div class="label">默认水印文字</div>
+          <input class="input" id="wmText" style="width:100%" maxlength="64" placeholder="例如：仅供内部使用">
+          <p class="hint">最多 64 字；内置字形覆盖常用汉字、英文、数字与常用符号，支持换行</p>
+        </div>
+
+        <div class="site-field wm-detail">
+          <div class="label">默认位置</div>
+          <select class="input" id="wmPosition" style="width:100%">
+            <option value="top-left">左上角</option>
+            <option value="top">顶部居中</option>
+            <option value="top-right">右上角</option>
+            <option value="center">居中</option>
+            <option value="bottom-left">左下角</option>
+            <option value="bottom">底部居中</option>
+            <option value="bottom-right">右下角</option>
+            <option value="tile">重复平铺</option>
+            <option value="tile-diagonal">重复斜铺</option>
+          </select>
+        </div>
+
+        <div class="site-field wm-detail">
+          <div class="label">默认字号</div>
+          <div class="wm-range-wrap">
+            <input type="range" class="wm-range" id="wmSize" min="8" max="240" step="1" value="20">
+            <span class="wm-range-val" id="wmSizeVal">20 px</span>
+          </div>
+          <p class="hint">8 ~ 240 像素（按 600×600 的码图计算，实际跟着 size 参数同比缩放）</p>
+        </div>
+
+        <div class="site-field wm-detail">
+          <div class="label">默认颜色</div>
+          <div class="icon-row">
+            <input type="color" id="wmColor" value="#1f2937"
+                   style="width:52px;height:38px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--panel)">
+            <span class="hint mono" id="wmColorVal">#1f2937</span>
+          </div>
+        </div>
+
+        <div class="site-field wm-detail span-2">
+          <div class="label">默认透明度</div>
+          <div class="wm-range-wrap">
+            <input type="range" class="wm-range" id="wmOpacity" min="0" max="100" step="1" value="25">
+            <span class="wm-range-val" id="wmOpacityVal">25%</span>
+          </div>
+          <p class="hint">0 = 完全透明（不显示），100 = 完全不透明；建议 20~50，太高会盖住码点影响识别</p>
+        </div>
+
+        <div class="site-field wm-detail span-2">
+          <div class="label">实时预览</div>
+          <div class="wm-preview-wrap">
+            <img id="wmPreview" class="wm-preview" alt="水印实时预览" src="/api/watermark/preview">
+            <div class="wm-preview-side">
+              <p class="hint" id="wmPreviewHint">
+                预览按真实生成管线渲染（PNG，含右下角默认角标），位置、字号、颜色、透明度与下载结果完全一致。
+                改任意一项都会自动刷新。
+              </p>
+              <button class="btn btn-ghost" id="wmPreviewRefresh" type="button">刷新预览</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar-block">
+        <div class="toolbar">
+          <button class="btn btn-brand" id="saveWatermark" type="button">保存水印设置</button>
+          <span class="hint">保存后立即生效；已经生成的码不会改变</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 用户 -->
+  <section id="tab-users" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">用户</h2>
+        <div class="grow"></div>
+        <span class="hint" id="userTotal"></span>
+      </div>
+
+      <!-- 工具条按用途分两块：上面筛选，下面建号 —— 手机上堆叠时不会混在一起 -->
+      <div class="toolbar-block">
+        <div class="toolbar-title">筛选</div>
+        <div class="toolbar">
+          <input class="input" id="uq" placeholder="搜索用户名 / 邮箱 / 备注" style="width:15rem">
+          <select class="input" id="ustatus" style="width:7.5rem">
+            <option value="">全部状态</option>
+            <option value="active">正常</option>
+            <option value="banned">已封禁</option>
+          </select>
+          <button class="btn" id="searchUsers" type="button">搜索</button>
+        </div>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">新建用户</div>
+        <div class="toolbar">
+          <input class="input" id="nu-name" placeholder="用户名" style="width:8rem">
+          <input class="input" id="nu-pass" type="password" placeholder="初始密码" style="width:8rem">
+          <input class="input" id="nu-quota" placeholder="额度" style="width:6rem">
+          <button class="btn btn-brand" id="createUser" type="button">创建</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="num">ID</th><th>用户名</th><th>邮箱</th><th>状态</th>
+            <th class="num">额度</th><th class="num">已用</th><th class="num">最近 IP</th><th class="num">注册</th><th>操作</th>
+          </tr></thead>
+          <tbody id="userRows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="info" id="userPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="userPageSize"></select></label>
+        <button class="btn" id="userPrev" type="button">上一页</button>
+        <button class="btn" id="userNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 记录 -->
+  <section id="tab-records" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">全部记录</h2>
+        <div class="grow"></div>
+        <span class="hint" id="recTotal"></span>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">筛选</div>
+        <div class="toolbar">
+          <select class="input" id="rkind" style="width:7.5rem">
+            <option value="">全部类型</option>
+            <option value="gen">生成</option>
+            <option value="decode">解析</option>
+          </select>
+          <input class="input" id="ruser" placeholder="用户 ID" style="width:7rem" inputmode="numeric">
+          <button class="btn" id="loadRecords" type="button">查询</button>
+          <button class="btn" id="reloadRecords" type="button">刷新</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="num time">时间</th><th>用户</th><th>类型</th><th>来源</th><th>内容</th><th class="num">规格</th><th class="num">IP</th></tr></thead>
+          <tbody id="recRows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span class="info" id="recPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="recPageSize"></select></label>
+        <button class="btn" id="recPrev" type="button">上一页</button>
+        <button class="btn" id="recNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 预设 LOGO -->
+  <section id="tab-preset" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">预设 LOGO</h2>
+        <div class="grow"></div>
+        <span class="badge" id="presetCount">— 个</span>
+      </div>
+      <p class="card-sub">
+        用户在「生成」页中心 logo 处点 <b>用预设</b> 就能一键选用这里的图。
+        <b>排序</b>值小的排在前面，前台按同一顺序展示；<b>停用</b>的只在后台可见。
+      </p>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">上传</div>
+        <div class="toolbar">
+          <button class="btn btn-brand" id="presetUpload" type="button">上传 LOGO</button>
+          <input class="input" id="presetName" placeholder="名称（留空用文件名）" maxlength="20" style="width:12rem">
+          <input type="file" id="presetFile" accept="image/png,image/jpeg,image/gif" hidden multiple>
+          <span class="hint">
+            支持 PNG / JPG / GIF，可多选，单个 ≤ 4MB；GIF 保留动画，其它格式超过 512px 自动缩小；
+            新上传的排到最后，可再改排序
+          </span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>预览</th><th>名称</th><th>文件</th>
+            <th class="num">排序</th><th>启用</th><th>操作</th>
+          </tr></thead>
+          <tbody id="presetRows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 邀请码 -->
+  <section id="tab-invites" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">邀请码</h2>
+        <div class="grow"></div>
+        <a class="btn" href="/api/admin/invites/export">导出 CSV</a>
+        <a class="btn btn-brand" id="exportLastInvites" href="/api/admin/invites/export" style="display:none">导出本次生成</a>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">生成邀请码</div>
+        <div class="toolbar">
+          <input class="input" id="iv-code" placeholder="留空自动生成" style="width:11rem">
+          <input class="input" id="iv-max" placeholder="可用次数" style="width:7rem" inputmode="numeric">
+          <input class="input" id="iv-exp" placeholder="有效期 2026-12-31" style="width:11rem">
+          <button class="btn btn-brand" id="createInvite" type="button">生成</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>邀请码</th><th class="num">使用</th><th class="num">有效期</th><th>备注</th><th>操作</th></tr></thead>
+          <tbody id="ivRows"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="info" id="ivPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="ivPageSize"></select></label>
+        <button class="btn" id="ivPrev" type="button">上一页</button>
+        <button class="btn" id="ivNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 卡密 -->
+  <section id="tab-cards" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">卡密</h2>
+        <div class="grow"></div>
+        <span class="hint" id="cardTotal"></span>
+        <a class="btn" id="exportCards" href="/api/admin/cards/export">导出 CSV</a>
+        <a class="btn btn-brand" id="exportLastCards" href="/api/admin/cards/export" style="display:none">导出本次生成</a>
+      </div>
+      <p class="card-sub">
+        卡密兑换后增加通用额度，转码和解码都能使用；一张卡只能兑换一次。
+        已兑换的卡密保留作审计，不能删除。
+      </p>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">批量生成</div>
+        <div class="toolbar">
+          <input class="input" id="card-amount" placeholder="每张次数" style="width:7rem" inputmode="numeric" value="10">
+          <input class="input" id="card-count" placeholder="生成张数" style="width:7rem" inputmode="numeric" value="1">
+          <input class="input" id="card-exp" placeholder="有效期 2026-12-31" style="width:11rem">
+          <input class="input" id="card-note" placeholder="备注（可选）" style="width:10rem">
+          <button class="btn btn-brand" id="createCards" type="button">批量生成</button>
+        </div>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">按状态筛选</div>
+        <div class="toolbar">
+          <select class="input" id="cardFilterStatus" style="width:8rem">
+            <option value="">全部状态</option>
+            <option value="unused">未兑换</option>
+            <option value="used">已兑换</option>
+            <option value="expired">已过期</option>
+          </select>
+          <button class="btn" id="reloadCards" type="button">刷新</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>卡密</th><th class="num">次数</th><th>状态</th><th>兑换用户</th>
+            <th class="num">兑换时间</th><th class="num">有效期</th><th>备注</th><th>操作</th>
+          </tr></thead>
+          <tbody id="cardRows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="info" id="cardPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="cardPageSize"></select></label>
+        <button class="btn" id="cardPrev" type="button">上一页</button>
+        <button class="btn" id="cardNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 黑名单 -->
+  <section id="tab-blacklist" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">黑名单</h2>
+        <div class="grow"></div>
+        <span class="hint" id="blTotal"></span>
+      </div>
+      <p class="card-sub">
+        <b>内容关键词</b>：生成内容包含该词时直接拒绝（不扣额度、不记录）；
+        <b>IP</b>：该来源访问整站返回 403（管理员账号自动放行，避免把自己锁在外面）。
+      </p>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">添加黑名单</div>
+        <div class="toolbar">
+          <select class="input" id="bl-kind" style="width:8.5rem">
+            <option value="keyword">内容关键词</option>
+            <option value="ip">IP 地址</option>
+          </select>
+          <input class="input" id="bl-value" placeholder="关键词，如：违禁词" style="width:14rem">
+          <input class="input" id="bl-note" placeholder="备注（可选）" style="width:11rem">
+          <button class="btn btn-brand" id="bl-add" type="button">添加</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>类型</th><th>内容</th><th>备注</th><th class="num">添加时间</th><th>操作</th></tr></thead>
+          <tbody id="blRows"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="info" id="blPageInfo">—</span>
+        <label class="page-size">每页 <select class="input" id="blPageSize"></select></label>
+        <button class="btn" id="blPrev" type="button">上一页</button>
+        <button class="btn" id="blNext" type="button">下一页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 邮箱 -->
+  <section id="tab-mail" class="tab-panel" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">邮箱验证与找回密码</h2>
+        <div class="grow"></div>
+        <span class="badge" id="mailStatus">—</span>
+      </div>
+      <p class="card-sub">
+        找回密码要同时满足三件事：<b>开启邮箱验证</b> + <b>发信配置完整</b> + <b>该用户已绑定邮箱</b>。
+        开关关闭时，即使用户绑过邮箱也不会发送任何邮件；未绑定邮箱的用户，页面会提示联系管理员重置。
+        「强制使用邮箱注册」是独立开关：开启后注册必须完成邮箱验证码校验，同样要求下方发信配置完整。
+      </p>
+
+      <div class="cfg-group">
+        <div class="cfg-group-title">开关</div>
+        <div class="switch">
+          <div>
+            <div class="label">开启邮箱验证</div>
+            <div class="desc">
+              开启后，用户可在「我的」里绑定邮箱，并可用邮箱验证码找回密码。
+              开启前必须先把下方发信配置填完整，否则保存会被拒绝 —— 避免出现「开关是开的、邮件却发不出去」的假可用状态。
+            </div>
+          </div>
+          <label class="tgl"><input type="checkbox" id="setEmailVerify"><span></span></label>
+        </div>
+        <div class="switch">
+          <div>
+            <div class="label">强制使用邮箱注册</div>
+            <div class="desc">
+              开启后注册页必须填写邮箱并完成验证码验证才能注册成功；注册后的邮箱可直接当账号登录。
+              默认关闭，关闭时注册流程与以前完全一致，已有账号不受影响。此开关同样要求发信配置完整。
+            </div>
+          </div>
+          <label class="tgl"><input type="checkbox" id="setRegisterEmail"><span></span></label>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <div class="cfg-group-title">发信服务器（SMTP）</div>
+        <div class="grid two site-grid">
+          <div class="site-field">
+            <div class="label">发信地址</div>
+            <input class="input" id="smtpFrom" style="width:100%" placeholder="noreply@example.com" spellcheck="false">
+            <p class="hint">邮件头里的 From，通常是你的邮箱地址；留空则无法开启邮箱验证。</p>
+          </div>
+
+          <div class="site-field">
+            <div class="label">发信人名称</div>
+            <input class="input" id="smtpFromName" style="width:100%" placeholder="葵码生成器" maxlength="60">
+            <p class="hint">收件人看到的显示名，可留空（只显示邮箱地址）。</p>
+          </div>
+
+          <div class="site-field">
+            <div class="label">SMTP 服务器</div>
+            <input class="input" id="smtpHost" style="width:100%" placeholder="smtp.qq.com" spellcheck="false">
+            <p class="hint">只填域名或 IP，不要带 <code>smtp://</code> 或路径。</p>
+          </div>
+
+          <div class="site-field">
+            <div class="label">端口 / 加密方式</div>
+            <div class="field-row">
+              <input class="input mono num" id="smtpPort" inputmode="numeric" placeholder="465">
+              <select class="input sel" id="smtpTls">
+                <option value="ssl">SSL（一般 465）</option>
+                <option value="starttls">STARTTLS（一般 587）</option>
+                <option value="none">不加密（仅内网中继）</option>
+              </select>
+            </div>
+            <p class="hint">QQ / 163 邮箱用 SSL + 465；企业邮箱常见 STARTTLS + 587。</p>
+          </div>
+
+          <div class="site-field">
+            <div class="label">SMTP 账号</div>
+            <input class="input" id="smtpUser" style="width:100%" placeholder="noreply@example.com" spellcheck="false">
+            <p class="hint">通常是完整邮箱地址；内网中继不需要认证时留空。</p>
+          </div>
+
+          <div class="site-field">
+            <div class="label">密码 / 授权码</div>
+            <input class="input" id="smtpPass" type="password" style="width:100%" autocomplete="new-password"
+                   placeholder="SMTP 密码或授权码">
+            <p class="hint">
+              已保存时留空表示不修改。<label style="font-weight:400;display:inline-flex;gap:.3rem;align-items:center">
+                <input type="checkbox" id="smtpPassClear">清除已保存的密码/授权码</label>
+            </p>
+            <p class="hint">QQ / 163 邮箱要在设置里开启 SMTP 并生成「授权码」，不能用登录密码。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-title">保存与测试</div>
+        <div class="toolbar">
+          <button class="btn btn-brand" id="saveMail" type="button">保存邮箱配置</button>
+          <button class="btn" id="testMail" type="button">发送测试邮件</button>
+          <input class="input" id="mailTestTo" placeholder="测试收件邮箱（留空用发信地址）" style="width:18rem" spellcheck="false">
+        </div>
+        <p class="hint" id="mailHint">
+          测试邮件直接用当前表单里的值发送（密码留空则用已保存的），不需要先保存。
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/layer.js?v={{ASSET_V}}"></script>
+<script>
+const $ = s => document.querySelector(s);
+const themeKey = 'wxcode-theme';
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b0e14' : '#2f6bff');
+}
+try { applyTheme(localStorage.getItem(themeKey) || 'light'); } catch(e){}
+$('#themeBtn').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t);
+  // 主题记到浏览器缓存，下次打开还是这个
+  try { localStorage.setItem(themeKey, t); } catch(e){}
+};
+// 统一走 layer.msg：原生 alert 的样式不受控，移动端还会阻塞渲染
+function toast(msg, bad){ layer.msg(msg, {error: !!bad}); }
+async function api(path, opt){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opt || {}));
+  let d = {}; try { d = await r.json(); } catch(e){}
+  if (!r.ok) { const e = new Error(d.error || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return d;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtTime = s => s ? new Date(s).toLocaleString('zh-CN', {hour12:false}) : '—';
+
+// ---------- 列表分页（后台所有列表共用） ----------
+const PAGE_SIZES = [10, 20, 50, 100];
+const paging = {
+  user: {page: 0, size: 20},
+  rec:  {page: 0, size: 20},
+  iv:   {page: 0, size: 20},
+  card: {page: 0, size: 20},
+  bl:   {page: 0, size: 20}
+};
+function initPager(key, reload) {
+  const st = paging[key];
+  const sel = $('#' + key + 'PageSize');
+  if (!sel) return;
+  if (!sel.dataset.ready) {
+    sel.innerHTML = PAGE_SIZES.map(n => '<option value="' + n + '">' + n + ' 条</option>').join('');
+    sel.dataset.ready = '1';
+    const reloadSafe = () => Promise.resolve(reload()).catch(e => toast(e.message, true));
+    sel.onchange = () => {
+      st.size = parseInt(sel.value, 10) || 20;
+      st.page = 0;
+      reloadSafe();
+    };
+    const prev = $('#' + key + 'Prev'), next = $('#' + key + 'Next');
+    if (prev) prev.onclick = () => { if (st.page > 0) { st.page--; reloadSafe(); } };
+    if (next) next.onclick = () => { st.page++; reloadSafe(); };
+  }
+  sel.value = String(st.size);
+}
+function syncPager(key, total, shown) {
+  const st = paging[key];
+  const pages = Math.max(1, Math.ceil((total || 0) / st.size));
+  let clamped = false;
+  if (st.page >= pages) {
+    st.page = pages - 1;
+    clamped = true;
+  }
+  const info = $('#' + key + 'PageInfo');
+  if (info) info.textContent = '第 ' + (st.page + 1) + ' / ' + pages + ' 页 · 共 ' + (total || 0) +
+    ' 条 · 本页 ' + (shown || 0) + ' 条';
+  const prev = $('#' + key + 'Prev'), next = $('#' + key + 'Next');
+  if (prev) prev.disabled = st.page <= 0;
+  if (next) next.disabled = st.page >= pages - 1;
+  return clamped;
+}
+
+// IP 渲染成归属地查询链接（ip138）；不是合法 IP 就按普通文本显示
+function isIP(s) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(s) || (s.indexOf(':') >= 0 && /^[0-9a-fA-F:.]+$/.test(s));
+}
+function ipCell(ip) {
+  if (!ip) return '—';
+  const text = esc(ip);
+  if (!isIP(ip)) return text;
+  return '<a class="ip-link" href="https://www.ip138.com/iplookup.php?ip=' +
+    encodeURIComponent(ip) + '" target="_blank" rel="noopener noreferrer" title="查询 IP 归属地">' +
+    text + '</a>';
+}
+
+// ---------- 标签页 ----------
+// 每个标签页的标题 / 说明 / 角标：切页时同步更新页面头部
+const TAB_META = {
+  overview: {t:'概览', d:'站点运行状态与系统信息'},
+  config:   {t:'配置', d:'访问控制、记录隐私、上传上限、站点与生成码水印'},
+  users:    {t:'用户', d:'查看与管理系统账号：额度、邮箱、备注与封禁'},
+  records:  {t:'记录', d:'全站生成 / 解析历史，可按类型与用户筛选'},
+  preset:   {t:'预设LOGO', d:'用户生成时可一键选用的中心 LOGO：排序、启用与删除'},
+  invites:  {t:'邀请码', d:'生成与撤销注册邀请码，可限制次数与有效期'},
+  cards:    {t:'卡密', d:'批量生成兑换卡，已兑换的卡密自动留档'},
+  blacklist:{t:'黑名单', d:'内容关键词拦截与 IP 封禁'},
+  mail:     {t:'邮箱', d:'发信服务器配置、邮箱验证与找回密码开关'}
+};
+function syncHead(key) {
+  const m = TAB_META[key] || TAB_META.overview;
+  $('#pageTitle').textContent = m.t;
+  $('#pageDesc').textContent = m.d;
+  document.title = m.t + ' · 管理后台';
+}
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => {
+      const on = x === t;
+      x.classList.toggle('active', on);
+      x.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    ['overview','config','users','records','preset','invites','cards','blacklist','mail'].forEach(k => {
+      $('#tab-' + k).style.display = (k === t.dataset.tab) ? '' : 'none';
+    });
+    syncHead(t.dataset.tab);
+    // 切到对应页签时滚动回顶部：否则手机上会停在上一页的滚动位置
+    try { window.scrollTo({top: 0, behavior: 'instant'}); } catch(e){ window.scrollTo(0, 0); }
+    if (t.dataset.tab === 'users') loadUsers();
+    if (t.dataset.tab === 'records') loadRecords(0);
+    if (t.dataset.tab === 'preset') loadPresets();
+    if (t.dataset.tab === 'invites') loadInvites();
+    if (t.dataset.tab === 'cards') loadCards();
+    if (t.dataset.tab === 'blacklist') loadBlacklist();
+  };
+});
+
+// ---------- 概览 / 配置 ----------
+
+// ---------- 概览：字节 / 时长格式化 ----------
+function fmtBytes(n){
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  const units = ['KB','MB','GB','TB'];
+  let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+  return (n >= 100 ? n.toFixed(0) : n.toFixed(1)) + ' ' + units[i];
+}
+
+function fmtDuration(sec){
+  sec = Math.max(0, Math.floor(Number(sec) || 0));
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor(sec % 86400 / 3600);
+  const m = Math.floor(sec % 3600 / 60);
+  const s2 = sec % 60;
+  if (d > 0) return d + ' 天 ' + h + ' 小时';
+  if (h > 0) return h + ' 小时 ' + m + ' 分';
+  if (m > 0) return m + ' 分 ' + s2 + ' 秒';
+  return s2 + ' 秒';
+}
+
+// ---------- 水印：滑块数值与实时预览 ----------
+const WM_EMPTY_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+let wmPreviewTimer = null;
+
+const WM_MODE_HINTS = {
+  none:  '生成的码不加水印，前端也不展示水印设置。',
+  all:   '前端展示水印设置，所有人（含未登录）都能改；用户不配置就不加水印。',
+  user:  '前端展示水印设置；登录用户可改，未登录用户开关禁用且默认关闭（输出不带水印）。',
+  admin: '前端不展示水印设置；所有生成请求都强制套用下面的默认水印，请求里的水印参数会被忽略。'
+};
+const WM_MODE_BADGES = {none:'无水印', all:'所有人可配置', user:'登录用户可配置', admin:'管理员全局'};
+
+// syncWmModeUI 根据四档全局配置，切换默认水印字段的显隐与顶部状态徽标。
+function syncWmModeUI(){
+  const mode = $('#wmMode').value || 'none';
+  // 只有「管理员全局配置」需要管理员填默认水印；其它模式由前端用户自己设置
+  const showDetail = mode === 'admin';
+  document.querySelectorAll('.wm-detail').forEach(el => { el.style.display = showDetail ? '' : 'none'; });
+  const on = mode !== 'none';
+  const hint = $('#wmModeHint');
+  if (hint) hint.textContent = WM_MODE_HINTS[mode] || '';
+  const badge = $('#wmStatus');
+  if (badge) {
+    badge.textContent = WM_MODE_BADGES[mode] || '—';
+    badge.className = on ? 'badge ok' : 'badge';
+  }
+}
+
+function syncWmLabels(){
+  const size = $('#wmSize'), op = $('#wmOpacity'), color = $('#wmColor');
+  if (size) $('#wmSizeVal').textContent = size.value + ' px';
+  if (op) $('#wmOpacityVal').textContent = op.value + '%';
+  if (color) $('#wmColorVal').textContent = color.value;
+}
+
+function wmPreviewURL(){
+  const q = new URLSearchParams();
+  const text = $('#wmText').value.trim();
+  if (text) q.set('text', text);
+  q.set('size', $('#wmSize').value || '20');
+  q.set('color', $('#wmColor').value || '#1f2937');
+  q.set('opacity', $('#wmOpacity').value || '0');
+  q.set('position', $('#wmPosition').value || 'center');
+  q.set('t', String(Date.now())); // 换 URL 避免浏览器拿缓存
+  return '/api/watermark/preview?' + q.toString();
+}
+
+// refreshWmPreview 延迟一点点再请求，拖动滑块时不会每像素打一次接口。
+function refreshWmPreview(delay){
+  const img = $('#wmPreview'), hint = $('#wmPreviewHint');
+  if (!img) return;
+  clearTimeout(wmPreviewTimer);
+  wmPreviewTimer = setTimeout(() => {
+    if (!$('#wmText').value.trim()) {
+      img.src = WM_EMPTY_IMG;
+      if (hint) hint.textContent = '填写水印文字后，这里会实时显示水印效果。';
+      return;
+    }
+    img.src = wmPreviewURL();
+    if (hint) hint.textContent = '预览按真实生成管线渲染（PNG，含右下角默认角标），与下载结果完全一致。';
+  }, delay === undefined ? 180 : delay);
+}
+
+const wmModeSel = $('#wmMode');
+if (wmModeSel) wmModeSel.addEventListener('change', () => {
+  syncWmModeUI();
+  if ($('#wmMode').value === 'admin') refreshWmPreview(0);
+});
+
+['wmText','wmSize','wmColor','wmOpacity','wmPosition'].forEach(id => {
+  const el = $('#' + id);
+  if (!el) return;
+  el.addEventListener('input', () => { syncWmLabels(); refreshWmPreview(); });
+  el.addEventListener('change', () => { syncWmLabels(); refreshWmPreview(); });
+});
+const wmRefreshBtn = $('#wmPreviewRefresh');
+if (wmRefreshBtn) wmRefreshBtn.onclick = (ev) => { ev.preventDefault(); refreshWmPreview(0); };
+
+async function loadOverview(){
+  const d = await api('/api/admin/overview');
+  const s = d.stats || {}, st = d.settings || {}, lg = d.logging || {};
+  $('#st-users').textContent = s.users || 0;
+  $('#st-total').textContent = s.total || 0;
+  $('#st-split').textContent = (s.gen || 0) + ' / ' + (s.decode || 0);
+  $('#st-today').textContent = s.today || 0;
+
+  // 系统信息
+  const sys = d.system || {};
+  $('#st-dbsize').textContent = fmtBytes(sys.dbSizeBytes);
+  $('#sys-version').textContent = sys.version || '—';
+  $('#sys-go').textContent = sys.goVersion || '—';
+  $('#sys-platform').textContent = (sys.os || '—') + ' / ' + (sys.arch || '—');
+  $('#sys-cpu').textContent = (sys.cpus || 0) + ' 核 / ' + (sys.goroutines || 0);
+  $('#sys-started').textContent = sys.startedAt ? new Date(sys.startedAt).toLocaleString('zh-CN', {hour12:false}) : '—';
+  $('#sys-uptime').textContent = fmtDuration(sys.uptimeSeconds || 0);
+  $('#sys-mem').textContent = fmtBytes(sys.memAlloc) + ' / ' + fmtBytes(sys.memSys);
+  $('#sys-dbsize').textContent = fmtBytes(sys.dbSizeBytes);
+
+  // 日志配置（环境变量控制，改完需重启，这里只做展示）
+  $('#st-log-level').textContent = lg.level || '—';
+  $('#st-log-format').textContent = lg.format || '—';
+  $('#st-log-access').textContent = lg.access ? '开启' : '关闭';
+
+  $('#setRegisterOpen').checked = !!st.registerOpen;
+  $('#setInviteRequired').checked = !!st.inviteRequired;
+  $('#setRequireLogin').checked = !!st.requireLogin;
+  $('#setCaptchaEnabled').checked = st.captchaEnabled !== false;
+  $('#setQuota').value = st.defaultQuota;
+  $('#setRecordEnabled').checked = st.recordEnabled !== false;
+  $('#setRecordPayloadMode').value = st.recordPayloadMode || 'full';
+  $('#setRetentionDays').value = st.recordRetentionDays || 0;
+  $('#setAnonLogo').value = st.anonLogoKb;
+  $('#setUserLogo').value = st.userLogoKb;
+  $('#setAnonImage').value = st.anonImageKb;
+  $('#setUserImage').value = st.userImageKb;
+
+  // 站点设置：名称 / 统计代码 / 关键词 / 公告 / 图标版本
+  $('#setSiteName').value = st.siteName || '';
+  $('#setFooter').value = st.footerHtml || '';
+  $('#setKeywords').value = st.siteKeywords || '';
+  $('#setAnnounce').value = st.siteAnnounce || '';
+  $('#setCorsOrigins').value = st.corsOrigins || '';
+
+  // 水印：四档全局配置 + 默认水印参数
+  $('#wmMode').value = st.watermarkMode || 'none';
+  $('#wmText').value = st.watermarkText || '';
+  $('#wmSize').value = st.watermarkSize || 20;
+  $('#wmColor').value = /^#[0-9a-fA-F]{6}$/.test(st.watermarkColor || '') ? st.watermarkColor : '#1f2937';
+  $('#wmOpacity').value = (st.watermarkOpacity === 0 || st.watermarkOpacity) ? st.watermarkOpacity : 25;
+  $('#wmPosition').value = st.watermarkPosition || 'center';
+  syncWmModeUI();
+  syncWmLabels();
+  if ($('#wmMode').value === 'admin') refreshWmPreview(0);
+  $('#iconPreview').src = '/icon.png?v=' + encodeURIComponent(st.iconVer || '');
+
+  // 邮箱配置：密码不回显，只提示「已保存」
+  $('#setEmailVerify').checked = !!st.emailVerifyEnabled;
+  $('#setRegisterEmail').checked = !!st.registerEmailRequired;
+  $('#smtpFrom').value = st.smtpFrom || '';
+  $('#smtpFromName').value = st.smtpFromName || '';
+  $('#smtpHost').value = st.smtpHost || '';
+  $('#smtpPort').value = st.smtpPort || 465;
+  $('#smtpTls').value = st.smtpTls || 'ssl';
+  $('#smtpUser').value = st.smtpUser || '';
+  $('#smtpPass').value = '';
+  $('#smtpPass').placeholder = st.smtpPassSet ? '已保存，留空表示不修改' : 'SMTP 密码或授权码';
+  $('#smtpPassClear').checked = false;
+  const smtpReady = !!st.smtpHost && st.smtpPort > 0 && !!st.smtpFrom &&
+    (st.smtpUser ? !!st.smtpPassSet : true);
+  const mailBadge = $('#mailStatus');
+  const anyEmailOn = !!st.emailVerifyEnabled || !!st.registerEmailRequired;
+  if (!anyEmailOn) {
+    mailBadge.textContent = '未开启';
+    mailBadge.className = 'badge';
+  } else if (!smtpReady) {
+    mailBadge.textContent = '配置不完整';
+    mailBadge.className = 'badge warn';
+  } else {
+    mailBadge.textContent = '已开启';
+    mailBadge.className = 'badge ok';
+  }
+
+  // 右侧「当前状态」摘要
+  $('#st-reg').textContent = !st.registerOpen ? '已关闭注册'
+    : (st.inviteRequired ? '邀请码注册' : '开放注册');
+  $('#st-usage').innerHTML = st.requireLogin
+    ? '<span class="badge warn">需要登录</span>'
+    : '<span class="badge ok">免登录可用</span>';
+  $('#st-quota').textContent = st.defaultQuota;
+  $('#st-mix').textContent = (s.total || 0) + ' 条 · 今日 ' + (s.today || 0);
+  try {
+    const h = await api('/api/health');
+    $('#st-ver').textContent = 'v' + (h.version || '—');
+  } catch(e){}
+}
+$('#saveSettings').onclick = async () => {
+  try {
+    await api('/api/admin/settings', {method:'PUT', body: JSON.stringify({
+      registerOpen: $('#setRegisterOpen').checked,
+      inviteRequired: $('#setInviteRequired').checked,
+      requireLogin: $('#setRequireLogin').checked,
+      captchaEnabled: $('#setCaptchaEnabled').checked,
+      defaultQuota: parseInt($('#setQuota').value || '0', 10),
+      recordEnabled: $('#setRecordEnabled').checked,
+      recordPayloadMode: $('#setRecordPayloadMode').value,
+      recordRetentionDays: parseInt($('#setRetentionDays').value || '0', 10) || 0,
+      anonLogoKb: parseInt($('#setAnonLogo').value || '0', 10) || 0,
+      userLogoKb: parseInt($('#setUserLogo').value || '0', 10) || 0,
+      anonImageKb: parseInt($('#setAnonImage').value || '0', 10) || 0,
+      userImageKb: parseInt($('#setUserImage').value || '0', 10) || 0
+    })});
+    toast('配置已保存');
+    loadOverview();
+  } catch(e){ toast(e.message, true); }
+};
+
+$('#saveWatermark').onclick = async () => {
+  const mode = $('#wmMode').value;
+  const text = $('#wmText').value.trim();
+  if (mode === 'admin' && !text) { toast('管理员全局配置需要先填写默认水印文字', true); return; }
+  try {
+    await api('/api/admin/settings', {method:'PUT', body: JSON.stringify({
+      watermarkMode: mode,
+      watermarkText: text,
+      watermarkSize: parseInt($('#wmSize').value || '20', 10) || 20,
+      watermarkColor: $('#wmColor').value,
+      watermarkOpacity: parseInt($('#wmOpacity').value || '0', 10) || 0,
+      watermarkPosition: $('#wmPosition').value
+    })});
+    toast('水印设置已保存');
+    if (mode === 'admin') refreshWmPreview(0);
+    loadOverview();
+  } catch(e){ toast(e.message, true); }
+};
+
+$('#backupImport').onclick = async () => {
+  const input = $('#backupFile');
+  const file = input.files && input.files[0];
+  if (!file) { toast('请先选择备份 .zip 文件', true); return; }
+  if (!confirm('导入会用备份数据覆盖当前全站数据（用户、记录、配置等），且不可撤销。\n确定继续？')) return;
+  const btn = $('#backupImport'), old = btn.textContent;
+  btn.disabled = true; btn.textContent = '导入中…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/api/admin/backup/import', {method:'POST', body: fd});
+    let d = {}; try { d = await r.json(); } catch(e){}
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    toast('导入成功，正在重新登录…');
+    setTimeout(() => { location.href = '/login'; }, 1200);
+  } catch(e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+};
+
+$('#saveSite').onclick = async () => {
+  const name = $('#setSiteName').value.trim();
+  if (!name) { toast('站点名称不能为空', true); return; }
+  try {
+    await api('/api/admin/settings', {method:'PUT', body: JSON.stringify({
+      siteName: name,
+      footerHtml: $('#setFooter').value,
+      siteKeywords: $('#setKeywords').value,
+      siteAnnounce: $('#setAnnounce').value,
+      corsOrigins: $('#setCorsOrigins').value
+    })});
+    toast('站点设置已保存');
+    // 标题、导航栏都是服务端渲染的，重新载入才能看到效果
+    setTimeout(() => location.reload(), 700);
+  } catch(e){ toast(e.message, true); }
+};
+
+// ---------- 邮箱验证 / 发信 ----------
+function mailFormBody() {
+  const body = {
+    smtpHost: $('#smtpHost').value.trim(),
+    smtpPort: parseInt($('#smtpPort').value || '0', 10) || 0,
+    smtpUser: $('#smtpUser').value.trim(),
+    smtpFrom: $('#smtpFrom').value.trim(),
+    smtpFromName: $('#smtpFromName').value.trim(),
+    smtpTls: $('#smtpTls').value
+  };
+  const p = $('#smtpPass').value;
+  if (p) body.smtpPass = p;
+  if ($('#smtpPassClear').checked) body.smtpPassClear = true;
+  return body;
+}
+
+$('#saveMail').onclick = async () => {
+  const body = mailFormBody();
+  body.emailVerifyEnabled = $('#setEmailVerify').checked;
+  body.registerEmailRequired = $('#setRegisterEmail').checked;
+  try {
+    await api('/api/admin/settings', {method:'PUT', body: JSON.stringify(body)});
+    $('#smtpPass').value = '';
+    $('#smtpPassClear').checked = false;
+    toast('邮箱配置已保存');
+    loadOverview();
+  } catch(e){ toast(e.message, true); }
+};
+
+$('#testMail').onclick = async () => {
+  const body = mailFormBody();
+  delete body.smtpPassClear;
+  body.to = $('#mailTestTo').value.trim();
+  const btn = $('#testMail');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '发送中…';
+  try {
+    const d = await api('/api/admin/email/test', {method:'POST', body: JSON.stringify(body)});
+    toast('测试邮件已发送到 ' + d.to + '，耗时 ' + d.ms + 'ms');
+  } catch(e){ toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = old; }
+};
+
+$('#pickIcon').onclick = () => $('#iconFile').click();
+$('#iconFile').onchange = async () => {
+  const f = $('#iconFile').files[0];
+  if (!f) return;
+  if (f.size > 4 * 1024 * 1024) { toast('图片超过 4MB', true); $('#iconFile').value = ''; return; }
+  try {
+    const fd = new FormData();
+    fd.append('icon', f);
+    const r = await fetch('/api/admin/icon', {method:'POST', body: fd});
+    let d = {}; try { d = await r.json(); } catch(e){}
+    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    $('#iconPreview').src = '/icon.png?v=' + encodeURIComponent(d.iconVer || Date.now());
+    toast('图标已更新（' + Math.round((d.bytes || 0) / 1024) + 'KB）');
+  } catch(e){ toast(e.message, true); }
+  $('#iconFile').value = '';
+};
+
+$('#resetIcon').onclick = async () => {
+  const ok = await layer.confirm('恢复成内置默认图标？上传的图标会被删除。', {title:'恢复默认图标'});
+  if (!ok) return;
+  try {
+    await api('/api/admin/icon', {method:'DELETE'});
+    $('#iconPreview').src = '/icon.png?v=' + Date.now();
+    toast('已恢复默认图标');
+  } catch(e){ toast(e.message, true); }
+};
+
+// ---------- 预设 LOGO ----------
+// 管理员传一批中心图，用户在生成页「用预设」直接选用。
+// 列表只含元信息，缩略图由 /api/preset-logos/{id} 直接给图。
+let presetLogos = [];
+let presetMax = 30;
+
+function presetById(id) {
+  return presetLogos.filter(p => p.id === id)[0];
+}
+
+function presetFileText(p) {
+  const kind = p.mime === 'image/gif' ? 'GIF 动图' : (p.mime === 'image/jpeg' ? 'JPG' : 'PNG');
+  return kind + ' · ' + fmtBytes(p.bytes);
+}
+
+function renderPresets() {
+  const box = $('#presetRows');
+  const on = presetLogos.filter(p => p.enabled).length;
+  $('#presetCount').textContent = '启用 ' + on + ' / 共 ' + presetLogos.length + ' 个（上限 ' + presetMax + '）';
+  if (!presetLogos.length) {
+    box.innerHTML = '<tr><td colspan="6" class="empty">还没有预设 LOGO，点上面的「上传 LOGO」添加</td></tr>';
+    return;
+  }
+  box.innerHTML = presetLogos.map(p =>
+    '<tr class="preset-row' + (p.enabled ? '' : ' is-off') + '">' +
+      '<td data-label="预览"><img class="preset-thumb" src="/api/preset-logos/' + p.id +
+        '" alt="' + esc(p.name) + '" loading="lazy"></td>' +
+      '<td data-label="名称"><span class="preset-name" title="' + esc(p.name) + '">' + esc(p.name) + '</span>' +
+        (p.enabled ? '' : '<span class="badge">已停用</span>') + '</td>' +
+      '<td data-label="文件"><span class="mono preset-file">' + presetFileText(p) + '</span></td>' +
+      '<td class="num" data-label="排序">' +
+        '<input class="input preset-sort" type="text" inputmode="numeric" maxlength="4" ' +
+          'value="' + p.sort + '" data-id="' + p.id + '" aria-label="排序值"></td>' +
+      '<td data-label="启用"><label class="tgl" title="' + (p.enabled ? '已启用，点一下停用' : '已停用，点一下启用') + '">' +
+        '<input type="checkbox" data-enable="' + p.id + '"' + (p.enabled ? ' checked' : '') + '><span></span></label></td>' +
+      '<td data-label="操作"><div class="row ops">' +
+        '<button class="btn btn-sm" type="button" data-act="rename" data-id="' + p.id + '">改名</button>' +
+        '<button class="btn btn-sm btn-danger" type="button" data-act="del" data-id="' + p.id + '">删除</button>' +
+      '</div></td>' +
+    '</tr>').join('');
+}
+
+async function loadPresets() {
+  const box = $('#presetRows');
+  try {
+    const d = await api('/api/admin/preset-logos');
+    presetLogos = d.items || [];
+    presetMax = d.max || 30;
+  } catch(e){
+    presetLogos = [];
+    box.innerHTML = '<tr><td colspan="6" class="empty">加载失败：' + esc(e.message) + '</td></tr>';
+    $('#presetCount').textContent = '— 个';
+    return;
+  }
+  renderPresets();
+}
+
+// savePreset 局部更新（name / sort / enabled），返回是否成功。
+async function savePreset(id, patch) {
+  await api('/api/admin/preset-logos/' + id, {method:'PUT', body: JSON.stringify(patch)});
+}
+
+$('#presetUpload').onclick = () => $('#presetFile').click();
+$('#presetFile').onchange = async () => {
+  const files = Array.prototype.slice.call($('#presetFile').files || []);
+  if (!files.length) return;
+  const typed = $('#presetName').value.trim();
+  if (presetLogos.length + files.length > presetMax) {
+    toast('最多 ' + presetMax + ' 个预设 LOGO，请先删掉不用的', true);
+    $('#presetFile').value = '';
+    return;
+  }
+  const btn = $('#presetUpload');
+  const old = btn.textContent;
+  btn.disabled = true;
+  let ok = 0, firstErr = '';
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.size > 4 * 1024 * 1024) { firstErr = firstErr || (f.name + ' 超过 4MB'); continue; }
+    btn.textContent = '上传中 ' + (i + 1) + '/' + files.length + '…';
+    try {
+      const fd = new FormData();
+      fd.append('logo', f);
+      // 只传一张时优先用输入框里的名称；多选时各用各的文件名
+      fd.append('name', files.length === 1 ? (typed || f.name) : f.name);
+      const r = await fetch('/api/admin/preset-logos', {method:'POST', body: fd});
+      let d = {}; try { d = await r.json(); } catch(e){}
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      ok++;
+    } catch(e){ firstErr = firstErr || e.message; }
+  }
+  btn.disabled = false;
+  btn.textContent = old;
+  $('#presetFile').value = '';
+  if (ok) { $('#presetName').value = ''; toast('已上传 ' + ok + ' 个预设 LOGO'); }
+  if (firstErr) toast(firstErr, true);
+  await loadPresets();
+};
+
+// 排序：改完按回车或点走就保存（再点一次「确定」式的按钮没必要）
+$('#presetRows').addEventListener('change', async ev => {
+  const sortEl = ev.target.closest('input.preset-sort');
+  if (sortEl) {
+    const id = parseInt(sortEl.dataset.id, 10);
+    const item = presetById(id);
+    if (!item) return;
+    const raw = sortEl.value.trim();
+    const n = /^\d{1,4}$/.test(raw) ? parseInt(raw, 10) : NaN;
+    if (isNaN(n) || n < 0 || n > 9999) {
+      toast('排序值请填 0~9999 的整数', true);
+      sortEl.value = item.sort;   // 回滚成库里的值
+      return;
+    }
+    if (n === item.sort) return;
+    try {
+      await savePreset(id, { sort: n });
+      toast('排序已保存：' + item.name + ' → ' + n);
+      await loadPresets();        // 列表按新顺序重排，肉眼能立刻看到效果
+    } catch(e){
+      toast(e.message, true);
+      sortEl.value = item.sort;
+    }
+    return;
+  }
+
+  const enEl = ev.target.closest('input[data-enable]');
+  if (!enEl) return;
+  const id = parseInt(enEl.dataset.enable, 10);
+  const item = presetById(id);
+  if (!item) return;
+  const on = enEl.checked;
+  enEl.disabled = true;
+  try {
+    await savePreset(id, { enabled: on });
+    item.enabled = on;
+    // 就地更新这一行：排序没变，不必整表重绘（也不会打断别的输入）
+    const tr = enEl.closest('tr');
+    if (tr) {
+      tr.classList.toggle('is-off', !on);
+      const nameCell = tr.querySelector('td[data-label="名称"]');
+      const badge = nameCell && nameCell.querySelector('.badge');
+      if (on && badge) badge.remove();
+      if (!on && nameCell) nameCell.insertAdjacentHTML('beforeend', '<span class="badge">已停用</span>');
+      const label = enEl.closest('label');
+      if (label) label.title = on ? '已启用，点一下停用' : '已停用，点一下启用';
+    }
+    const cnt = presetLogos.filter(p => p.enabled).length;
+    $('#presetCount').textContent = '启用 ' + cnt + ' / 共 ' + presetLogos.length + ' 个（上限 ' + presetMax + '）';
+    toast(on ? '已启用：' + item.name : '已停用：' + item.name + '（前台不再展示）');
+  } catch(e){
+    enEl.checked = !on;
+    toast(e.message, true);
+  } finally {
+    enEl.disabled = false;
+  }
+});
+
+// 输入框里按回车直接触发保存（与失焦同一条路径）
+$('#presetRows').addEventListener('keydown', ev => {
+  if (ev.key === 'Enter' && ev.target.closest('input.preset-sort')) {
+    ev.preventDefault();
+    ev.target.blur();
+  }
+});
+
+$('#presetRows').onclick = async ev => {
+  const b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  const id = parseInt(b.dataset.id, 10);
+  const item = presetById(id);
+  if (!item) return;
+
+  if (b.dataset.act === 'rename') {
+    const v = await layer.prompt('新的名称（最多 20 字）', item.name, {title:'重命名预设 LOGO'});
+    if (v === null) return;
+    if (!v.trim()) { toast('名称不能为空', true); return; }
+    try {
+      await savePreset(id, { name: v.trim() });
+      toast('已重命名：' + v.trim());
+      loadPresets();
+    } catch(e){ toast(e.message, true); }
+    return;
+  }
+
+  const ok = await layer.confirm(
+    '删除预设「' + item.name + '」？之后用户就不能再选它了（已生成的图不受影响）。',
+    {title:'删除预设 LOGO', okText:'删除', danger:true});
+  if (!ok) return;
+  try {
+    await api('/api/admin/preset-logos/' + id, {method:'DELETE'});
+    toast('已删除：' + item.name);
+    loadPresets();
+  } catch(e){ toast(e.message, true); }
+};
+
+// ---------- 用户 ----------
+async function loadUsers(){
+  initPager('user', loadUsers);
+  const ps = paging.user;
+  const q = encodeURIComponent($('#uq').value.trim());
+  const status = $('#ustatus').value;
+  const d = await api('/api/admin/users?limit=' + ps.size + '&offset=' + (ps.page * ps.size) +
+    '&q=' + q + (status ? '&status=' + status : ''));
+  const rows = d.items || [];
+  const total = d.total || 0;
+  if (syncPager('user', total, rows.length)) return loadUsers();
+  $('#userTotal').textContent = '共 ' + total + ' 人';
+  if (!rows.length) { $('#userRows').innerHTML = '<tr><td colspan="9" class="empty">没有匹配的用户</td></tr>'; return; }
+  $('#userRows').innerHTML = rows.map(u =>
+    '<tr><td class="num" data-label="ID">' + u.id + '</td>' +
+    '<td data-label="用户名">' + esc(u.username) + '</td>' +
+    '<td class="clip" data-label="邮箱">' + (u.email ? esc(u.email) : '<span class="hint">未绑定</span>') + '</td>' +
+    '<td data-label="状态"><span class="badge ' + (u.status === 'banned' ? 'bad' : 'ok') + '">' + (u.status === 'banned' ? '已封禁' : '正常') + '</span></td>' +
+    '<td class="num" data-label="额度">' + u.quota + '</td>' +
+    '<td class="num" data-label="已用">' + u.quotaUsed + '</td>' +
+    '<td class="num" data-label="最近 IP">' + ipCell(u.lastIp) + '</td>' +
+    '<td class="num" data-label="注册">' + fmtTime(u.createdAt) + '</td>' +
+    '<td data-label="操作"><div class="row ops">' +
+      '<button class="btn btn-sm" data-act="quota" data-id="' + u.id + '" data-v="' + u.quota + '">额度</button>' +
+      '<button class="btn btn-sm" data-act="email" data-id="' + u.id + '" data-v="' + esc(u.email || '') + '">邮箱</button>' +
+      '<button class="btn btn-sm" data-act="note" data-id="' + u.id + '">备注</button>' +
+      '<button class="btn btn-sm" data-act="pwd" data-id="' + u.id + '">改密</button>' +
+      '<button class="btn btn-sm ' + (u.status === 'banned' ? '' : 'btn-danger') + '" data-act="status" data-id="' + u.id + '" data-v="' + u.status + '">' +
+        (u.status === 'banned' ? '解封' : '封禁') + '</button>' +
+    '</div></td></tr>'
+  ).join('');
+}
+
+$('#userRows').onclick = async ev => {
+  const b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  try {
+    if (act === 'quota') {
+      const v = await layer.prompt('设置剩余额度（整数，0 表示用完即止）', b.dataset.v, {
+        title: '调整额度', inputType: 'number', hint: '只影响该用户，不影响其他人'
+      });
+      if (v === null) return;
+      await api('/api/admin/users/' + id, {method:'PUT', body: JSON.stringify({quota: parseInt(v, 10) || 0})});
+      layer.msg('额度已更新');
+    } else if (act === 'status') {
+      const next = b.dataset.v === 'banned' ? 'active' : 'banned';
+      if (next === 'banned') {
+        const ok = await layer.confirm('封禁后该用户立即掉线、API Key 同时失效。确定封禁？', {
+          title: '封禁用户', okText: '封禁', danger: true
+        });
+        if (!ok) return;
+      }
+      await api('/api/admin/users/' + id, {method:'PUT', body: JSON.stringify({status: next})});
+      layer.msg(next === 'banned' ? '已封禁' : '已解封');
+    } else if (act === 'pwd') {
+      const v = await layer.prompt('给该用户设置一个新密码（至少 6 位）', '', {
+        title: '重置密码', hint: '重置后该用户需重新登录'
+      });
+      if (!v) return;
+      await api('/api/admin/users/' + id + '/password', {method:'POST', body: JSON.stringify({password: v})});
+      layer.msg('密码已重置');
+    } else if (act === 'email') {
+      const v = await layer.prompt('绑定/修改邮箱（留空表示解绑）。该邮箱可用于找回密码。', b.dataset.v, {
+        title: '用户邮箱', hint: '管理员直接设置，无需验证；请确认地址无误'
+      });
+      if (v === null) return;
+      await api('/api/admin/users/' + id, {method:'PUT', body: JSON.stringify({email: v})});
+      layer.msg(v.trim() ? '邮箱已更新' : '邮箱已解绑');
+    } else if (act === 'note') {
+      const v = await layer.prompt('备注（可留空）', '', {title: '编辑备注'});
+      if (v === null) return;
+      await api('/api/admin/users/' + id, {method:'PUT', body: JSON.stringify({note: v})});
+      layer.msg('已保存');
+    }
+    loadUsers();
+  } catch(e){ layer.msg(e.message, {error: true}); }
+};
+
+$('#createUser').onclick = async () => {
+  try {
+    const body = {
+      username: $('#nu-name').value.trim(),
+      password: $('#nu-pass').value
+    };
+    const q = $('#nu-quota').value.trim();
+    if (q) body.quota = parseInt(q, 10) || 0;
+    await api('/api/admin/users', {method:'POST', body: JSON.stringify(body)});
+    $('#nu-name').value = $('#nu-pass').value = $('#nu-quota').value = '';
+    toast('已创建');
+    loadUsers();
+  } catch(e){ toast(e.message, true); }
+};
+$('#searchUsers').onclick = () => { paging.user.page = 0; loadUsers().catch(e => toast(e.message, true)); };
+
+// ---------- 记录（带翻页） ----------
+let recRows = [];          // 当前页数据：查看 / 拉黑按钮只传下标
+// 已在黑名单里的 IP：记录页据此把「拉黑」换成「已拉黑」。
+// 每次进记录页 / 翻页都重新拉一次（上限 500 条，一条请求就够）：
+// 宁可多一次请求，也不要因为别处改过黑名单而显示过期的「已拉黑」。
+let recBlockedIPs = new Set();
+
+function specOf(r) {
+  try {
+    const x = JSON.parse(r.detail || '{}');
+    return r.kind === 'gen'
+      ? ('v' + x.version + '/' + x.level + ' mask ' + x.mask)
+      : ('v' + x.version + '/' + x.ecLevel + ' mask ' + x.mask);
+  } catch (e) { return ''; }
+}
+
+function showRecord(r) {
+  const meta = [fmtTime(r.createdAt), r.username || '未知用户',
+    r.kind === 'gen' ? '生成' : '解析', r.source === 'api' ? 'API' : '网页',
+    r.ip || '—', specOf(r)].filter(Boolean).join(' · ');
+  layer.view('记录内容', r.payload, { meta: meta });
+}
+
+// syncBlockedIPs 拉一次 IP 黑名单，用于把按钮渲染成「已拉黑」。
+// 失败不打断列表：退化成「点一下才知道」，服务端仍会兜住重复添加。
+async function syncBlockedIPs() {
+  try {
+    const d = await api('/api/admin/blacklist?limit=500&offset=0');
+    recBlockedIPs = new Set((d.items || []).filter(e => e.kind === 'ip').map(e => e.value));
+  } catch (e) { /* 忽略：不影响记录列表本身 */ }
+}
+
+// blockIPBtn 只在确实是 IP 时给按钮；空 IP / 非 IP（如「—」）不给。
+function blockIPBtn(ip) {
+  if (!ip || !isIP(ip)) return '';
+  if (recBlockedIPs.has(ip)) {
+    return '<span class="badge warn ip-block-badge" title="该 IP 已在黑名单">已拉黑</span>';
+  }
+  return '<button class="btn btn-view btn-block-ip" type="button" data-block-ip="' + esc(ip) +
+    '" title="把该 IP 加入黑名单：该来源访问整站返回 403（管理员账号不受影响）">拉黑</button>';
+}
+
+function renderRecords() {
+  if (!recRows.length) {
+    $('#recRows').innerHTML = '<tr><td colspan="7" class="empty">没有记录</td></tr>';
+    return;
+  }
+  $('#recRows').innerHTML = recRows.map((r, i) => {
+    const full = String(r.payload == null ? '' : r.payload);
+    // 表格宽度有限，长内容在小屏上一定会被裁掉，所以每行都给「查看」
+    return '<tr><td class="num time" data-label="时间">' + fmtTime(r.createdAt) + '</td>' +
+      '<td data-label="用户">' + (r.username ? esc(r.username) : '<span class="hint">未知用户</span>') + '</td>' +
+      '<td data-label="类型">' + (r.kind === 'gen' ? '生成' : '解析') + '</td>' +
+      '<td data-label="来源">' + (r.source === 'api' ? 'API' : '网页') + '</td>' +
+      '<td class="clip" data-label="内容"><span class="clip-text" title="' + esc(full) + '">' +
+        esc(full.slice(0, 50)) + (full.length > 50 ? '…' : '') + '</span>' +
+        '<button class="btn btn-view" type="button" data-view="' + i + '">查看</button>' +
+      '</td>' +
+      '<td class="num" data-label="规格">' + esc(specOf(r)) + '</td>' +
+      '<td class="num" data-label="IP">' + ipCell(r.ip) + blockIPBtn(r.ip) + '</td></tr>';
+  }).join('');
+}
+
+async function loadRecords(page){
+  initPager('rec', () => loadRecords());
+  const st = paging.rec;
+  if (typeof page === 'number') st.page = Math.max(0, page);
+  const kind = $('#rkind').value;
+  const uid = $('#ruser').value.trim();
+  let qs = '?limit=' + st.size + '&offset=' + (st.page * st.size);
+  if (kind) qs += '&kind=' + kind;
+  if (uid) qs += '&userId=' + encodeURIComponent(uid);
+
+  const d = await api('/api/admin/records' + qs);
+  const rows = d.items || [];
+  const total = d.total || 0;
+  if (syncPager('rec', total, rows.length)) return loadRecords();
+
+  $('#recTotal').textContent = '共 ' + total + ' 条';
+  recRows = rows;
+  await syncBlockedIPs();   // 先拿到黑名单，再决定每行的按钮是「拉黑」还是「已拉黑」
+  renderRecords();
+}
+
+// 记录行点击：查看内容 / 一键拉黑 IP
+$('#recRows').onclick = async ev => {
+  const view = ev.target.closest('button[data-view]');
+  if (view) {
+    const r = recRows[parseInt(view.dataset.view, 10)];
+    if (r) showRecord(r);
+    return;
+  }
+
+  const btn = ev.target.closest('button[data-block-ip]');
+  if (!btn) return;
+  const ip = btn.dataset.blockIp;
+  const ok = await layer.confirm(
+    '把 ' + ip + ' 加入 IP 黑名单？该来源之后访问整站都会返回 403（管理员账号自动放行）。' +
+    '如果这是你自己的出口 IP，同一网络下的其他访客也会被挡。可在「黑名单」页撤销。',
+    { title: '拉黑 IP', okText: '拉黑', danger: true });
+  if (!ok) return;
+
+  btn.disabled = true;
+  try {
+    await api('/api/admin/blacklist', {method:'POST', body: JSON.stringify({
+      kind: 'ip', value: ip, note: '记录页一键拉黑'
+    })});
+    recBlockedIPs.add(ip);
+    renderRecords();            // 同 IP 的其它行也一并变成「已拉黑」
+    toast('已拉黑 ' + ip);
+  } catch (e) {
+    // 「已经在黑名单里了」说明之前手工加过：当成成功处理，别让管理员反复点
+    if (/已经在黑名单/.test(e.message)) {
+      recBlockedIPs.add(ip);
+      renderRecords();
+      toast(ip + ' 已在黑名单中');
+      return;
+    }
+    btn.disabled = false;
+    toast(e.message, true);
+  }
+};
+$('#loadRecords').onclick = () => loadRecords(0).catch(e => toast(e.message, true));
+$('#reloadRecords').onclick = () => loadRecords().catch(e => toast(e.message, true));
+$('#rkind').onchange = () => loadRecords(0).catch(e => toast(e.message, true));
+$('#ruser').onkeydown = ev => { if (ev.key === 'Enter') loadRecords(0).catch(e => toast(e.message, true)); };
+
+// showLastExport 生成成功后，把「导出本次」按钮指向刚拿到的批次号。
+function showLastExport(elId, path, batch, label){
+  const el = $('#' + elId);
+  if (!el || !batch) return;
+  el.href = path + '?batch=' + encodeURIComponent(batch);
+  el.textContent = label || '导出本次生成';
+  el.style.display = '';
+}
+
+// ---------- 邀请码 ----------
+async function loadInvites(){
+  initPager('iv', loadInvites);
+  const st = paging.iv;
+  const d = await api('/api/admin/invites?limit=' + st.size + '&offset=' + (st.page * st.size));
+  const rows = d.items || [];
+  const total = d.total || 0;
+  if (syncPager('iv', total, rows.length)) return loadInvites();
+  if (!rows.length) { $('#ivRows').innerHTML = '<tr><td colspan="5" class="empty">还没有邀请码</td></tr>'; return; }
+  $('#ivRows').innerHTML = rows.map(c =>
+    '<tr><td class="mono" data-label="邀请码">' + esc(c.code) + '</td>' +
+    '<td class="num" data-label="使用">' + c.used + ' / ' + c.maxUses + '</td>' +
+    '<td class="num" data-label="有效期">' + (c.expiresAt ? esc(c.expiresAt.slice(0, 10)) : '长期') + '</td>' +
+    '<td data-label="备注">' + esc(c.note) + '</td>' +
+    '<td data-label="操作"><button class="btn btn-sm btn-danger" data-code="' + esc(c.code) + '">删除</button></td></tr>'
+  ).join('');
+}
+$('#createInvite').onclick = async () => {
+  try {
+    const body = {};
+    if ($('#iv-code').value.trim()) body.code = $('#iv-code').value.trim();
+    body.maxUses = parseInt($('#iv-max').value || '1', 10) || 1;
+    if ($('#iv-exp').value.trim()) body.expiresAt = $('#iv-exp').value.trim();
+    const d = await api('/api/admin/invites', {method:'POST', body: JSON.stringify(body)});
+    toast('已生成：' + d.code + '（可导出本次）');
+    showLastExport('exportLastInvites', '/api/admin/invites/export', d.batch, '导出本次生成');
+    $('#iv-code').value = ''; $('#iv-max').value = ''; $('#iv-exp').value = '';
+    paging.iv.page = 0;
+    loadInvites();
+  } catch(e){ toast(e.message, true); }
+};
+$('#ivRows').onclick = async ev => {
+  const b = ev.target.closest('button[data-code]');
+  if (!b) return;
+  const ok = await layer.confirm('删除邀请码 ' + b.dataset.code + '？已用它注册的账号不受影响。', {
+    title: '删除邀请码', okText: '删除', danger: true
+  });
+  if (!ok) return;
+  try {
+    await api('/api/admin/invites/' + encodeURIComponent(b.dataset.code), {method:'DELETE'});
+    toast('已删除');
+    loadInvites();
+  } catch(e){ toast(e.message, true); }
+};
+
+// ---------- 卡密 ----------
+const CARD_STATUS = {unused:{t:'未兑换',c:'ok'}, used:{t:'已兑换',c:''}, expired:{t:'已过期',c:'bad'}};
+async function loadCards(){
+  initPager('card', loadCards);
+  const st = paging.card;
+  const status = $('#cardFilterStatus').value;
+  const qs = '?limit=' + st.size + '&offset=' + (st.page * st.size) + (status ? '&status=' + status : '');
+  const d = await api('/api/admin/cards' + qs);
+  const rows = d.items || [];
+  const total = d.total || 0;
+  if (syncPager('card', total, rows.length)) return loadCards();
+  $('#cardTotal').textContent = '共 ' + total + ' 张';
+  $('#exportCards').href = '/api/admin/cards/export' + (status ? '?status=' + status : '');
+  if (!rows.length) {
+    $('#cardRows').innerHTML = '<tr><td colspan="8" class="empty">还没有卡密</td></tr>';
+    return;
+  }
+  $('#cardRows').innerHTML = rows.map(c => {
+    const st = CARD_STATUS[c.status] || CARD_STATUS.unused;
+    const user = c.usedByName ? esc(c.usedByName) : (c.usedBy ? '#' + c.usedBy : '—');
+    return '<tr><td class="mono" data-label="卡密">' + esc(c.code) + '</td>' +
+      '<td class="num" data-label="次数">' + c.amount + '</td>' +
+      '<td data-label="状态"><span class="badge ' + st.c + '">' + st.t + '</span></td>' +
+      '<td data-label="兑换用户">' + user + '</td>' +
+      '<td class="num" data-label="兑换时间">' + (c.usedAt ? fmtTime(c.usedAt) : '—') + '</td>' +
+      '<td class="num" data-label="有效期">' + (c.expiresAt ? esc(c.expiresAt.slice(0, 10)) : '长期') + '</td>' +
+      '<td data-label="备注">' + esc(c.note || '—') + '</td>' +
+      '<td data-label="操作">' + (c.status === 'used' ? '<span class="hint">已留档</span>' :
+        '<button class="btn btn-sm btn-danger" data-card="' + esc(c.code) + '">删除</button>') + '</td></tr>';
+  }).join('');
+}
+$('#createCards').onclick = async () => {
+  try {
+    const body = {
+      amount: parseInt($('#card-amount').value || '1', 10) || 1,
+      count: parseInt($('#card-count').value || '1', 10) || 1
+    };
+    if ($('#card-exp').value.trim()) body.expiresAt = $('#card-exp').value.trim();
+    if ($('#card-note').value.trim()) body.note = $('#card-note').value.trim();
+    const d = await api('/api/admin/cards', {method:'POST', body: JSON.stringify(body)});
+    toast('已生成 ' + d.count + ' 张，可导出本次');
+    showLastExport('exportLastCards', '/api/admin/cards/export', d.batch, '导出本次（' + d.count + ' 张）');
+    $('#card-count').value = '1'; $('#card-exp').value = ''; $('#card-note').value = '';
+    paging.card.page = 0;
+    loadCards();
+  } catch(e){ toast(e.message, true); }
+};
+$('#reloadCards').onclick = () => loadCards().catch(e => toast(e.message, true));
+$('#cardFilterStatus').onchange = () => { paging.card.page = 0; loadCards().catch(e => toast(e.message, true)); };
+$('#cardRows').onclick = async ev => {
+  const b = ev.target.closest('button[data-card]');
+  if (!b) return;
+  const ok = await layer.confirm('删除未兑换卡密 ' + b.dataset.card + '？删除后无法恢复。', {
+    title: '删除卡密', okText: '删除', danger: true
+  });
+  if (!ok) return;
+  try {
+    await api('/api/admin/cards/' + encodeURIComponent(b.dataset.card), {method:'DELETE'});
+    toast('已删除');
+    loadCards();
+  } catch(e){ toast(e.message, true); }
+};
+
+// ---------- 黑名单 ----------
+let blItems = [];      // 当前页数据
+let blEditing = 0;     // 正在编辑的记录 id（0 = 没有）
+let blTotalCount = 0;
+
+function blKindBadge(kind) {
+  return kind === 'ip'
+    ? '<span class="badge warn">IP</span>'
+    : '<span class="badge">关键词</span>';
+}
+
+function renderBlacklist() {
+  $('#blTotal').textContent = '共 ' + blTotalCount + ' 条';
+  if (!blItems.length) {
+    $('#blRows').innerHTML = '<tr><td colspan="5" class="empty">还没有黑名单：在上方表单填好内容后点「添加」</td></tr>';
+    return;
+  }
+  $('#blRows').innerHTML = blItems.map(e => {
+    if (blEditing === e.id) {
+      // 行内编辑：类型不能改（删了重加），只改内容与备注
+      return '<tr data-id="' + e.id + '">' +
+        '<td data-label="类型">' + blKindBadge(e.kind) + '</td>' +
+        '<td data-label="内容"><input class="input" id="bl-edit-value" style="height:32px;width:100%;min-width:9rem" ' +
+          'value="' + esc(e.value) + '" placeholder="内容"></td>' +
+        '<td data-label="备注"><input class="input" id="bl-edit-note" style="height:32px;width:100%;min-width:7rem" ' +
+          'value="' + esc(e.note) + '" placeholder="备注（可选）"></td>' +
+        '<td class="num" data-label="添加时间">' + fmtTime(e.createdAt) + '</td>' +
+        '<td data-label="操作"><div class="row" style="gap:.35rem;flex-wrap:nowrap">' +
+          '<button class="btn btn-sm btn-brand" data-save="' + e.id + '">保存</button>' +
+          '<button class="btn btn-sm" data-cancel="1">取消</button>' +
+        '</div></td></tr>';
+    }
+    return '<tr data-id="' + e.id + '">' +
+      '<td data-label="类型">' + blKindBadge(e.kind) + '</td>' +
+      '<td class="clip" data-label="内容"><span class="clip-text" title="' + esc(e.value) + '">' + esc(e.value) + '</span></td>' +
+      '<td class="clip" data-label="备注">' + (e.note ? esc(e.note) : '<span class="hint">—</span>') + '</td>' +
+      '<td class="num" data-label="添加时间">' + fmtTime(e.createdAt) + '</td>' +
+      '<td data-label="操作"><div class="row" style="gap:.35rem;flex-wrap:nowrap">' +
+        '<button class="btn btn-sm" data-edit="' + e.id + '">修改</button>' +
+        '<button class="btn btn-sm btn-danger" data-del="' + e.id + '">删除</button>' +
+      '</div></td></tr>';
+  }).join('');
+}
+
+async function loadBlacklist(){
+  initPager('bl', loadBlacklist);
+  const st = paging.bl;
+  const d = await api('/api/admin/blacklist?limit=' + st.size + '&offset=' + (st.page * st.size));
+  blItems = d.items || [];
+  blTotalCount = d.total || 0;
+  if (syncPager('bl', blTotalCount, blItems.length)) return loadBlacklist();
+  blEditing = 0;
+  renderBlacklist();
+}
+
+$('#bl-kind').onchange = () => {
+  $('#bl-value').placeholder = $('#bl-kind').value === 'ip' ? 'IP，如：120.239.90.132' : '关键词，如：违禁词';
+};
+$('#bl-add').onclick = async () => {
+  const kind = $('#bl-kind').value;
+  const value = $('#bl-value').value.trim();
+  if (!value) { toast(kind === 'ip' ? '请输入 IP' : '请输入关键词', true); return; }
+  try {
+    await api('/api/admin/blacklist', {method:'POST', body: JSON.stringify({
+      kind: kind, value: value, note: $('#bl-note').value.trim()
+    })});
+    $('#bl-value').value = ''; $('#bl-note').value = '';
+    toast('已加入黑名单');
+    paging.bl.page = 0;
+    loadBlacklist();
+  } catch(e){ toast(e.message, true); }
+};
+['bl-value','bl-note'].forEach(id => $('#' + id).onkeydown = ev => {
+  if (ev.key === 'Enter') { ev.preventDefault(); $('#bl-add').click(); }
+});
+
+$('#blRows').onclick = async ev => {
+  const edit = ev.target.closest('button[data-edit]');
+  const cancel = ev.target.closest('button[data-cancel]');
+  const save = ev.target.closest('button[data-save]');
+  const del = ev.target.closest('button[data-del]');
+
+  if (edit) {
+    blEditing = parseInt(edit.dataset.edit, 10) || 0;
+    renderBlacklist();
+    const inp = $('#bl-edit-value');
+    if (inp) { inp.focus(); inp.select(); }
+    return;
+  }
+  if (cancel) {
+    blEditing = 0;
+    renderBlacklist();
+    return;
+  }
+  if (save) {
+    const id = save.dataset.save;
+    const value = ($('#bl-edit-value') || {}).value || '';
+    const note = ($('#bl-edit-note') || {}).value || '';
+    if (!value.trim()) { toast('内容不能为空', true); return; }
+    try {
+      await api('/api/admin/blacklist/' + encodeURIComponent(id), {
+        method:'PUT', body: JSON.stringify({ value: value, note: note })
+      });
+      toast('已保存');
+      loadBlacklist();
+    } catch(e){ toast(e.message, true); }
+    return;
+  }
+  if (del) {
+    const ok = await layer.confirm('删除后立即失效（关键词不再拦截 / IP 恢复访问），确定删除？', {
+      title: '移出黑名单', okText: '删除', danger: true
+    });
+    if (!ok) return;
+    try {
+      await api('/api/admin/blacklist/' + encodeURIComponent(del.dataset.del), {method:'DELETE'});
+      toast('已移出黑名单');
+      loadBlacklist();
+    } catch(e){ toast(e.message, true); }
+  }
+};
+
+// 编辑态里回车保存、Esc 取消
+$('#blRows').onkeydown = ev => {
+  if (!blEditing) return;
+  if (ev.key === 'Enter') { ev.preventDefault(); const b = $('#blRows button[data-save]'); if (b) b.click(); }
+  if (ev.key === 'Escape') { ev.preventDefault(); blEditing = 0; renderBlacklist(); }
+};
+
+$('#logout').onclick = async () => { await api('/api/logout', {method:'POST'}); location.href = '/'; };
+
+(async () => {
+  try {
+    await loadOverview();
+    loadPresets();
+  }
+  catch(e){ if (e.status === 401) location.href = '/login?next=/admin'; else toast(e.message, true); }
+})();
+</script>
+</body>
+</html>

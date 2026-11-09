@@ -1,0 +1,70 @@
+# 葵花码服务：docker compose up -d --build
+# 打开 http://localhost:8080/
+services:
+  wxcode:
+    build:
+      context: .
+      args:
+        VERSION: "1.0.0"
+        # 构建时间自动注入，启动日志里能看到镜像构建于何时
+        BUILD_TIME: "${BUILD_TIME:-unknown}"
+    image: wxcode:1.0.0
+    container_name: wxcode
+    ports:
+      - "8080:8080"
+    environment:
+      # 默认禁止把 logo/url 参数当本地文件路径读；确需读本地图片时改成 "1"
+      - ALLOW_LOCAL_IMAGE=0
+      - PORT=8080
+      - TZ=Asia/Shanghai
+      - DATA_DIR=/app/data
+      # 管理员账号：不填 ADMIN_PASSWORD 时首次启动随机生成，只在日志里打印一次：
+      #   docker compose logs wxcode | grep 管理员
+      # 也可以在 .env 里写好 ADMIN_USER / ADMIN_PASSWORD，部署后直接用它登录。
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # 改成 "1" 再 up 一次，会把已有管理员的密码重置为上面的 ADMIN_PASSWORD
+      - ADMIN_RESET_PASSWORD=${ADMIN_RESET_PASSWORD:-0}
+      # 客户端 IP：默认自动——只有请求来自内网/回环代理时才采信 X-Forwarded-For
+      # 强制关掉：TRUST_PROXY=0（只认 RemoteAddr）；强制开启：TRUST_PROXY=1
+      # - TRUST_PROXY=0
+
+      # ---------- 日志 ----------
+      # 日志全部写 stdout/stderr，用 `docker compose logs -f wxcode` 实时看。
+      # LOG_LEVEL: debug | info | warn | error（默认 info）
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # LOG_FORMAT: text（人看）| json（给 Loki/ELK 等采集）
+      # 设成 json 后启动横幅不再打印（多行 ASCII 会破坏 JSON 行解析）
+      - LOG_FORMAT=${LOG_FORMAT:-text}
+      # LOG_OUTPUT: stdout | stderr | both（both = info 走 stdout，warn/error 走 stderr）
+      - LOG_OUTPUT=${LOG_OUTPUT:-both}
+      # 是否打印访问日志（每个请求一行：方法/路径/状态/耗时/来源 IP/请求 ID）
+      - LOG_ACCESS=${LOG_ACCESS:-1}
+      # 访问日志里跳过的路径，逗号分隔（默认已含 /api/health，避免健康检查刷屏）
+      # - LOG_SKIP_PATHS=/api/health,/api/captcha
+      # 启动横幅开关（JSON 格式下自动关闭）
+      # - LOG_BANNER=1
+    volumes:
+      # SQLite 数据（用户 / 额度 / 记录）持久化：删容器不丢数据
+      - wxcode-data:/app/data
+    restart: unless-stopped
+    # ---------- 日志轮转 ----------
+    # Docker 默认的 json-file 驱动**不限制大小**，跑久了能把磁盘撑爆。
+    # 这里限制单个文件 10MB、最多留 3 份（约 30MB 封顶）。
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # docker stop 时先发 SIGTERM 让程序优雅退出（等在途请求，最长 5 秒），
+    # 超过 10 秒才强杀。给足时间，避免响应被截断。
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  wxcode-data:

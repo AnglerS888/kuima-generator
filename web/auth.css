@@ -1,0 +1,689 @@
+/* ============================================================
+   共享设计系统（登录 / 注册 / 我的 / 管理后台，令牌与前台一致）
+   目标：简单、干净 —— 更清晰的层级、统一的控件高度、
+   可感知的交互反馈（hover / press / focus-visible）
+   ============================================================ */
+
+/* ---------- 设计令牌 ---------- */
+:root{
+  /* 让原生控件（滚动条、下拉弹层、数字步进器）跟随主题，
+     否则暗色下这些部件仍是系统浅色 */
+  color-scheme:light;
+  --brand:#2f6bff; --brand-2:#1e4fd8; --brand-soft:rgba(47,107,255,.10);
+  /* 实心品牌按钮的渐变色：比 --brand 深一档，白字压在上面才够 4.5:1 */
+  --brand-solid:#2a5fd8; --brand-solid-2:#1e4fd8;
+  /* 实心品牌底上的文字色 */
+  --on-brand:#fff;
+  /* 实心危险色底上的文字色（暗色下 danger 本身很亮，得反过来用深色字） */
+  --on-danger:#fff;
+  /* 开关轨道「开」态颜色：白滑块压在上面要 ≥3:1 */
+  --tgl-on:#2f6bff;
+  /* 浅底上做文字用的语义色（--brand/--ok/--warn/--danger 偏亮，
+     直接压在同色系半透明底上只有 3:1 左右，读不清） */
+  --brand-ink:#2a5fd8; --ok-ink:#0a6b3c; --warn-ink:#8f5f00; --danger-ink:#c22a20;
+  --bg:#f4f6fa; --panel:#fff; --panel-2:#f7f9fc; --line:#e6eaf1; --line-2:#eef1f6;
+  --fg:#131a26; --dim:#67707f; --ok:#0f9d58; --warn:#c07f00; --danger:#d93025;
+  /* 正文字体栈：表格里插按钮用得上（td.num 是等宽，按钮要显式切回正文字体） */
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --nav-bg:rgba(255,255,255,.85);
+  --shadow:0 1px 2px rgba(18,26,40,.04), 0 8px 24px -16px rgba(18,26,40,.28);
+  --shadow-lift:0 2px 4px rgba(18,26,40,.05), 0 14px 34px -18px rgba(18,26,40,.32);
+  --radius:14px;
+  --radius-sm:10px;
+  --ctrl-h:38px;      /* 输入框 / 主按钮统一高度 */
+  --ctrl-h-sm:32px;   /* 小按钮高度 */
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --brand:#6ea0ff; --brand-2:#4b83ff; --brand-soft:rgba(110,160,255,.14);
+  /* 暗色下品牌色本身够亮，反过来用深色字压浅蓝底 */
+  --brand-solid:#6ea0ff; --brand-solid-2:#4b83ff;
+  --on-brand:#0a1017;
+  --on-danger:#0a1017;
+  /* 暗色下 --brand 太浅，白滑块压不住，用 --brand-2 这一档 */
+  --tgl-on:#4b83ff;
+  --brand-ink:#6ea0ff; --ok-ink:#4ade80; --warn-ink:#ffb454; --danger-ink:#ff8a8a;
+  --bg:#0b0e14; --panel:#151a24; --panel-2:#10151e; --line:#242d3c; --line-2:#1b2330;
+  --fg:#eaeffa; --dim:#95a2b8; --ok:#4ade80; --warn:#ffb454; --danger:#ff8a8a;
+  --nav-bg:rgba(13,17,25,.8);
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 26px -18px rgba(0,0,0,.7);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.4), 0 16px 36px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;background-color:var(--bg);color:var(--fg);
+  font:14px/1.65 var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1100px 480px at 50% -220px, var(--brand-soft), transparent 72%);
+  background-repeat:no-repeat;
+  transition:background-color .2s ease,color .2s ease;
+  padding-bottom:3.5rem;
+}
+a{color:var(--brand-ink);text-decoration:none;transition:color .15s ease}
+a:hover{color:var(--brand-2)}
+a:focus-visible,button:focus-visible,.input:focus-visible,summary:focus-visible{
+  outline:2px solid var(--brand);outline-offset:2px;border-radius:4px
+}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+::selection{background:var(--brand-soft)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* 细滚动条（表格 / textarea 内部滚动区域） */
+.table-wrap::-webkit-scrollbar,.card textarea::-webkit-scrollbar{height:8px;width:8px}
+.table-wrap::-webkit-scrollbar-thumb,textarea::-webkit-scrollbar-thumb{
+  background:var(--line);border-radius:4px}
+.table-wrap::-webkit-scrollbar-thumb:hover,textarea::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+
+/* ---------- 顶部导航（毛玻璃） ---------- */
+.topbar{
+  position:sticky;top:0;z-index:1030;
+  background:var(--nav-bg);
+  backdrop-filter:saturate(170%) blur(14px);
+  -webkit-backdrop-filter:saturate(170%) blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.topbar .inner{max-width:1080px;margin:0 auto;padding:.6rem 1rem;display:flex;align-items:center;gap:.6rem}
+.brand{display:flex;align-items:center;gap:.5rem;font-weight:700;color:var(--fg);min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.95rem;letter-spacing:-.01em}
+.brand:hover{color:var(--fg)}
+.brand-mark{width:27px;height:27px;border-radius:8px;flex:0 0 auto;object-fit:cover}
+.grow{flex:1}
+.link-btn{background:none;border:0;color:var(--dim);cursor:pointer;font-size:.82rem;
+  padding:.35rem .5rem;white-space:nowrap;flex:0 0 auto;border-radius:.5rem;transition:.15s ease}
+.link-btn:hover{color:var(--brand-ink);background:var(--brand-soft)}
+
+/* 主题切换按钮 */
+.icon-btn{
+  width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto;
+  border:1px solid var(--line);border-radius:.6rem;background:var(--panel);
+  color:var(--dim);cursor:pointer;transition:.15s ease;
+}
+.icon-btn:hover{color:var(--brand-ink);border-color:var(--brand);background:var(--brand-soft)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn svg{width:17px;height:17px;display:block}
+.icon-btn svg.ic-moon{display:none}
+html[data-theme="dark"] .icon-btn svg.ic-sun{display:none}
+html[data-theme="dark"] .icon-btn svg.ic-moon{display:block}
+
+/* ---------- 站内公告（后台可配，注入在顶栏之后） ---------- */
+/* 容器宽度与下方 .wrap 完全一致：1080 − 左右各 1rem 的内容盒。 */
+.site-announce{max-width:1080px;margin:0 auto;padding:.7rem 1rem .15rem}
+/* 登录 / 注册的主内容只有 420px，公告要跟卡片同宽，不能横到 1080。 */
+.narrow-page .site-announce{max-width:420px}
+.announce-inner{max-width:none;margin:0;display:flex;gap:.6rem;align-items:flex-start;
+  padding:.6rem .85rem .6rem .7rem;background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--brand);border-radius:.85rem;box-shadow:var(--shadow);
+  transition:background-color .2s ease,border-color .2s ease}
+.announce-ic{width:1.45rem;height:1.45rem;flex:0 0 auto;display:grid;place-items:center;
+  border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);margin-top:.08rem}
+.announce-ic svg{width:.85rem;height:.85rem}
+.announce-text{min-width:0;color:var(--fg);font-size:.84rem;line-height:1.7;
+  white-space:pre-wrap;word-break:break-word}
+@media(max-width:620px){
+  .site-announce{padding:.55rem .75rem .1rem}
+  .announce-inner{padding:.5rem .6rem;gap:.5rem;border-radius:.75rem}
+  .announce-text{font-size:.8rem;line-height:1.65}
+}
+
+/* ---------- 布局 ---------- */
+.wrap{max-width:1080px;margin:0 auto;padding:1.7rem 1rem 3rem}
+.narrow{max-width:420px;margin:0 auto}
+.grid{display:grid;gap:1rem;align-items:start}
+/* 网格已有 gap，卡片自身的纵向堆叠间距不应再叠加一次（否则右侧卡片低 16px）。 */
+.grid > .card + .card{margin-top:0}
+@media(min-width:900px){.grid.two{grid-template-columns:1fr 1fr}}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:1.3rem 1.4rem;transition:box-shadow .2s ease,border-color .2s ease}
+.card:hover{box-shadow:var(--shadow-lift)}
+.card + .card{margin-top:1rem}
+.card-head{display:flex;align-items:center;gap:.6rem;row-gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
+.card-title{margin:0;font-size:1.02rem;font-weight:700;letter-spacing:-.015em}
+.card-sub{margin:-.45rem 0 .95rem;color:var(--dim);font-size:.8rem;line-height:1.6}
+.badge{display:inline-flex;align-items:center;padding:.14rem .5rem;border-radius:999px;
+  font-size:.72rem;font-weight:600;background:var(--brand-soft);color:var(--brand-ink)}
+.badge.ok{background:rgba(15,157,88,.12);color:var(--ok-ink)}
+.badge.warn{background:rgba(192,127,0,.13);color:var(--warn-ink)}
+.badge.bad{background:rgba(217,48,37,.12);color:var(--danger-ink)}
+
+/* ---------- 表单 ---------- */
+.field{margin-bottom:.9rem}
+.field label{display:block;font-size:.78rem;color:var(--dim);margin-bottom:.35rem;font-weight:500}
+/* 图形验证码：输入框 + 可点击刷新的图片 */
+.captcha-row{display:flex;gap:.55rem;align-items:stretch}
+.captcha-row .input{flex:1;min-width:0;letter-spacing:.12em;font-family:ui-monospace,Menlo,monospace}
+.captcha-img{flex:0 0 132px;display:block;padding:0;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel-2);overflow:hidden;cursor:pointer;line-height:0;transition:.15s ease}
+.captcha-img:hover{border-color:var(--brand)}
+.captcha-img:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.captcha-img img{display:block;width:132px;height:44px}
+.input{
+  width:100%;height:var(--ctrl-h);padding:0 .75rem;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--panel-2);color:var(--fg);font-size:.86rem;outline:none;transition:.15s ease;
+}
+.input:hover{border-color:var(--dim)}
+.input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--panel)}
+textarea.input{height:auto;padding:.55rem .7rem;line-height:1.6;resize:vertical}
+select.input{appearance:none;padding-right:1.8rem;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.hint{font-size:.76rem;color:var(--dim);margin-top:.3rem;line-height:1.55}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+  height:var(--ctrl-h);padding:0 1rem;border-radius:var(--radius-sm);border:1px solid var(--line);
+  background:var(--panel-2);color:var(--fg);font-size:.86rem;font-weight:500;cursor:pointer;
+  transition:.15s ease;white-space:nowrap;
+}
+.btn:hover{border-color:var(--brand);color:var(--brand-ink);background:var(--panel)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-brand{background:linear-gradient(135deg,var(--brand-solid),var(--brand-solid-2));
+  border-color:transparent;color:var(--on-brand);
+  box-shadow:0 5px 14px -8px var(--brand)}
+.btn-brand:hover{color:var(--on-brand);border-color:transparent;filter:brightness(1.05)}
+.btn-brand:active{transform:scale(.97);filter:brightness(.97)}
+.btn-danger{color:var(--danger-ink)}
+.btn-danger:hover{border-color:var(--danger);color:var(--danger-ink);background:rgba(217,48,37,.06)}
+.btn-sm{height:var(--ctrl-h-sm);padding:0 .7rem;font-size:.78rem;border-radius:8px}
+.btn-block{width:100%}
+/* 幽灵按钮：白底描边，用于次要操作（原来只定义在 index.html 内联样式里，
+   后台页面只引 auth.css，导致 .btn-ghost 完全没有样式） */
+.btn-ghost{background:var(--panel);border:1px solid var(--line);color:var(--fg)}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand-ink);background:var(--brand-soft)}
+.btn-ghost:active{transform:scale(.97)}
+.btn-ghost:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line);color:var(--dim)}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+
+/* 工具条：下拉 / 输入 / 按钮统一高度，避免高矮不齐 */
+.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.toolbar .input{height:var(--ctrl-h-sm);padding:0 .7rem;font-size:.8rem;border-radius:8px}
+.toolbar select.input{padding-right:1.6rem}
+.toolbar .btn{height:var(--ctrl-h-sm);padding:0 .75rem;font-size:.8rem;border-radius:8px}
+
+/* ---------- 表格 ---------- */
+.table-wrap{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);
+  border-radius:12px;background:var(--panel);max-height:70vh}
+table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:660px}
+th,td{padding:.6rem .75rem;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:middle;
+  white-space:nowrap}
+/* 内容列可能很长：限宽 + 省略号，别把表格撑爆 */
+td.clip{max-width:22rem;overflow:hidden;text-overflow:ellipsis}
+th{position:sticky;top:0;z-index:2;
+  background:var(--panel-2);color:var(--dim);font-weight:600;font-size:.7rem;
+  letter-spacing:.05em;text-transform:uppercase;
+  box-shadow:inset 0 -1px 0 var(--line)}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s ease}
+tbody tr:hover{background:var(--brand-soft)}
+td.num{font-family:ui-monospace,Menlo,monospace;font-size:.78rem}
+
+
+/* 记录内容列：长内容截断 + 「查看」按钮（弹层看全文） */
+.clip-text{display:inline-block;max-width:15rem;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;vertical-align:middle}
+.btn-view{height:26px;padding:0 .55rem;font-size:.74rem;border-radius:7px;margin-left:.4rem;
+  vertical-align:middle;color:var(--dim);background:var(--panel)}
+.btn-view:hover{color:var(--brand-ink);border-color:var(--brand);background:var(--brand-soft)}
+/* 记录页 IP 旁的「拉黑」：比「查看」再瘦一点，二次确认后才真的提交 */
+.btn-block-ip{font-family:var(--font-sans);margin-left:.3rem;color:var(--danger-ink);white-space:nowrap}
+.btn-block-ip:hover{color:var(--on-danger);border-color:var(--danger);background:var(--danger)}
+.btn-block-ip:disabled{opacity:.55;cursor:not-allowed}
+.ip-block-badge{font-family:var(--font-sans);font-size:.68rem;margin-left:.3rem;vertical-align:middle}
+.btn-del{margin-left:.3rem;color:var(--danger-ink)}
+.btn-del:hover{color:var(--on-danger);border-color:var(--danger);background:var(--danger)}
+@media(max-width:620px){.clip-text{max-width:8.5rem}}
+
+/* IP：点开查归属地（ip138），虚线底提示可点 */
+.ip-link{color:var(--brand-ink);text-decoration:none;border-bottom:1px dashed transparent;
+  transition:border-color .15s ease,color .15s ease}
+.ip-link:hover{color:var(--brand-2);border-bottom-color:currentColor}
+
+/* 黑名单表格：操作列吸附在右侧。
+   表格有 min-width，窄屏（手机）要横向滚动才能看到最右列，
+   实测管理员会以为“没有修改/删除按钮”，所以把操作列固定住。 */
+#tab-blacklist table{min-width:600px}
+#tab-blacklist th:last-child,
+#tab-blacklist td:last-child{
+  position:sticky;right:0;z-index:1;background:var(--panel);
+  box-shadow:-10px 0 14px -14px rgba(16,24,40,.55);
+}
+#tab-blacklist thead th:last-child{background:var(--panel-2);z-index:3}
+#tab-blacklist tbody tr:hover td:last-child{background:var(--brand-soft)}
+
+/* ---------- 键值 ---------- */
+/* 竖排：标签定宽、值自适应 */
+.kv{display:grid;grid-template-columns:6rem 1fr;gap:.45rem .6rem;font-size:.84rem;margin:0;
+  padding-bottom:.2rem}
+.kv dt{color:var(--dim)}
+.kv dd{margin:0;min-width:0;word-break:break-word}
+
+/* 横排：多项等宽铺开，比竖排 kv 省高度（后台「当前状态」、我的页账户信息共用） */
+.kv-h{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:.85rem 1.3rem;margin:0}
+.kv-h dt{color:var(--dim);font-size:.74rem;line-height:1.5}
+.kv-h dd{margin:.2rem 0 0;font-size:.9rem;font-weight:600;min-width:0;word-break:break-word}
+.kv-h dd .badge{font-weight:600}
+/* 固定列数：auto-fit 会多出 0px 空轨道，用显式列数更干净 */
+.kv-h.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kv-h.cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:900px){
+  .kv-h.cols-5{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kv-h.cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .kv-h.cols-4,.kv-h.cols-5{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ---------- 提示条 ---------- */
+.note{padding:.65rem .8rem;border-radius:var(--radius-sm);font-size:.8rem;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--dim);line-height:1.6}
+.note.warn{border-color:rgba(192,127,0,.35);background:rgba(192,127,0,.07);color:var(--warn-ink)}
+.note.bad{border-color:rgba(217,48,37,.3);background:rgba(217,48,37,.06);color:var(--danger-ink)}
+
+/* ---------- 开关 ---------- */
+.switch{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.7rem 0;border-bottom:1px solid var(--line-2)}
+.switch:last-child{border-bottom:0}
+.switch .label{font-size:.86rem;font-weight:500}
+/* 表单里的独立字段标签（站点设置卡片等处） */
+.card .label{font-size:.82rem;font-weight:600;color:var(--fg);margin:0 0 .4rem;display:block}
+.card textarea.input{padding:.55rem .7rem;line-height:1.55}
+.switch .desc{font-size:.74rem;color:var(--dim);margin-top:.2rem;line-height:1.5}
+.tgl{position:relative;width:44px;height:24px;flex:0 0 auto;display:inline-block;cursor:pointer}
+/* inset:0 是必要的：input 用 static 位置时会被祖先的 text-align:right 顶到右边，
+   在「移动端表格卡片」（td 右对齐）里会多撑出 44px 的横向滚动 */
+.tgl input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.tgl span{position:absolute;inset:0;border-radius:999px;background:var(--line);transition:.18s}
+.tgl span::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+  border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tgl input:checked + span{background:var(--tgl-on)}
+.tgl input:checked + span::after{transform:translateX(20px)}
+.tgl input:focus-visible + span{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ---------- 分段式标签页 ---------- */
+.tabs{
+  display:inline-flex;gap:.25rem;padding:.3rem;margin-bottom:1.15rem;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);max-width:100%;overflow:auto;
+}
+.tab{padding:.45rem .95rem;border:0;border-radius:9px;background:none;color:var(--dim);
+  cursor:pointer;font-size:.84rem;font-weight:500;white-space:nowrap;transition:.15s ease}
+.tab:hover{color:var(--brand-ink);background:var(--brand-soft)}
+.tab:active{transform:scale(.97)}
+.tab.active{background:linear-gradient(135deg,var(--brand-solid),var(--brand-solid-2));
+  color:var(--on-brand);font-weight:600;
+  box-shadow:0 4px 12px -7px var(--brand)}
+
+/* ---------- 分页 ---------- */
+.pager{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
+.pager .info{font-size:.78rem;color:var(--dim);margin-right:auto}
+.pager .btn{height:var(--ctrl-h-sm);padding:0 .8rem;font-size:.78rem}
+.pager .btn:disabled{opacity:.45}
+.pager .page-size{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--dim)}
+.pager .page-size .input{height:var(--ctrl-h-sm);width:5rem;padding:0 .4rem;font-size:.78rem}
+
+.empty{padding:2.2rem 1rem;text-align:center;color:var(--dim);font-size:.84rem}
+.key-box{display:flex;gap:.5rem;align-items:center;padding:.6rem .75rem;
+  border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--panel-2)}
+.key-box code{flex:1;font-size:.8rem;word-break:break-all}
+
+/* ============================================================
+   我的（me.html）
+   ============================================================ */
+/* 顶层块的纵向间距统一交给 flex gap，不依赖「相邻 .card」兄弟选择器 ——
+   后者在 grid 容器夹在中间时会失效（曾导致「修改密码」卡与上方零间距）。 */
+.me-page{display:flex;flex-direction:column;gap:1rem}
+.wrap.me-page > .card{margin-top:0}
+/* 标签页：卡片放进面板后由面板的 gap 控制间距，避免与 .card + .card 叠加成双倍间距 */
+.me-page .tabs{margin-bottom:0}
+.me-page .tab-panel{display:flex;flex-direction:column;gap:1rem}
+.me-page .tab-panel[hidden]{display:none}
+.me-page .tab-panel > .card{margin-top:0}
+
+/* 账户信息卡：横排键值 + 底部提示（提示与键值之间用细线分隔） */
+.me-page .account-foot{margin:1rem 0 0;padding-top:.9rem;border-top:1px solid var(--line-2)}
+
+/* API Key：Key 框按内容收紧，右侧留给提示，避免通栏一大片空白 */
+.me-page .key-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.me-page .key-box{width:max-content;max-width:100%;flex:0 1 auto}
+.me-page .key-tip{margin:0;flex:1 1 18rem;min-width:0}
+
+/* 改密：两个输入框 + 按钮同一行，按钮底边与输入框底边对齐 */
+.me-page .pwd-row{display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end}
+.me-page .pwd-row .field{margin-bottom:0}
+.me-page .pwd-act{display:flex;align-items:flex-end}
+.me-page .pwd-act .btn{height:var(--ctrl-h)}
+
+/* ---------- 邮箱绑定（me.html） ---------- */
+/* 三段式：状态区（已绑定 / 未绑定）→ 步骤表单 → 提示。
+   状态区用左侧色条区分「已绑定」与「未绑定」，一眼能看出当前状态。 */
+.mail-state{display:flex;align-items:center;gap:.75rem;padding:.75rem .9rem;
+  border:1px solid var(--line);border-left:3px solid var(--ok);
+  border-radius:var(--radius-sm);background:var(--panel-2)}
+.mail-state.off{border-left-color:var(--line)}
+.mail-state-ic{width:2.05rem;height:2.05rem;flex:0 0 auto;border-radius:.6rem;display:grid;place-items:center;
+  background:rgba(15,157,88,.12);color:var(--ok-ink)}
+.mail-state.off .mail-state-ic{background:var(--brand-soft);color:var(--brand-ink)}
+.mail-state-ic svg{width:1.05rem;height:1.05rem;display:block}
+.mail-state-main{min-width:0;flex:1 1 auto}
+.mail-state-label{font-size:.72rem;color:var(--dim);line-height:1.4}
+.mail-state-val{font-size:.88rem;font-weight:600;margin-top:.12rem;word-break:break-all;line-height:1.45}
+.mail-state.off .mail-state-val{color:var(--dim);font-weight:500}
+.mail-state-act{display:flex;gap:.4rem;flex:0 0 auto;flex-wrap:wrap}
+
+/* 步骤表单：左侧序号圆点 + 标题 + 输入行 */
+.mail-form{margin-top:.85rem;display:flex;flex-direction:column;gap:.7rem}
+.mail-step{display:flex;gap:.7rem;align-items:flex-start}
+.mail-step-no{width:1.35rem;height:1.35rem;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+  background:var(--brand-soft);color:var(--brand-ink);font-size:.72rem;font-weight:700;
+  font-family:ui-monospace,Menlo,monospace;margin-top:.45rem}
+.mail-step.done .mail-step-no{background:rgba(15,157,88,.14);color:var(--ok-ink)}
+.mail-step-body{flex:1 1 auto;min-width:0}
+.mail-label{display:block;font-size:.78rem;color:var(--dim);font-weight:500;margin-bottom:.35rem}
+.mail-input-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.mail-input-row .input{flex:1 1 12rem;min-width:0}
+.mail-input-row .btn{flex:0 0 auto}
+/* 发送成功后给这一行加高亮边框，强化「下一步要做什么」 */
+.mail-step.active .mail-step-body{animation:mailFocus .5s ease}
+@keyframes mailFocus{from{opacity:.35}to{opacity:1}}
+
+@media(max-width:760px){
+  .me-page .pwd-row{grid-template-columns:1fr}
+  .me-page .pwd-act .btn{width:100%}
+  /* 邮箱步骤在窄屏把序号挪到标题同一行，避免右侧被挤空 */
+  .mail-step{gap:.55rem}
+  .mail-state{flex-wrap:wrap}
+  .mail-state-act{width:100%;justify-content:flex-end;
+    padding-top:.35rem;border-top:1px solid var(--line-2)}
+  /* 输入框独占一行，按钮整行宽 —— 手指点得准 */
+  .mail-input-row{flex-direction:column;align-items:stretch}
+  .mail-input-row .input,.mail-input-row .btn{width:100%;flex:1 1 auto}
+}
+
+@media(max-width:620px){
+  body{padding-bottom:2.5rem}
+  .wrap{padding:1rem .75rem 2.5rem}
+  .topbar .inner{padding:.5rem .7rem;gap:.3rem}
+  .brand{font-size:.88rem}
+  .brand-sub{display:none}
+  .link-btn{font-size:.78rem;padding:.45rem .5rem;min-height:34px;
+    display:inline-flex;align-items:center;border-radius:.55rem}
+  .card{padding:1.05rem .95rem;border-radius:12px}
+  .card-head{gap:.5rem}
+  .card-head .input{flex:1 1 7rem;width:auto !important;min-width:0}
+  .toolbar{gap:.45rem}
+  .toolbar .input{flex:1 1 6rem;width:auto !important;min-width:0}
+  .toolbar .btn{flex:0 0 auto;min-height:38px}
+  /* iOS 聚焦时 input 字号 <16px 会强制放大页面，这里统一 16px / 42px 高，点着也更准 */
+  .input{font-size:16px;height:42px}
+  textarea.input{height:auto;min-height:5rem;padding:.6rem .7rem;line-height:1.6}
+  .btn{min-height:38px}
+  .btn-sm{min-height:30px}
+  td.clip{max-width:12rem}
+  .clip-text{max-width:8.5rem}
+  .kv{grid-template-columns:4.8rem 1fr}
+  /* 标签页：横向滑动，不换行、不挤压，滚动条隐藏 */
+  .tabs{display:flex;width:100%;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;padding:.45rem .7rem;font-size:.8rem;scroll-snap-align:start}
+  table{min-width:600px;font-size:.78rem}
+  th,td{padding:.5rem .55rem}
+  .table-wrap{max-height:none}
+  .pager{flex-wrap:wrap;gap:.4rem}
+  .stats{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .stat{padding:.75rem .8rem .7rem}
+}
+
+/* ============================================================
+   后台专用（admin.html）
+   —— 全部挂在 .admin-page 下，登录 / 注册 / 我的页不受影响
+   ============================================================ */
+
+/* 顶栏高度写成变量：标签栏要吸顶在顶栏下面，得知道顶栏有多高 */
+:root{--topbar-h:47px}
+.admin-page .topbar .inner{min-height:46px}
+
+/* ---------- 页面头部：标题 + 说明 ---------- */
+.admin-page .admin-head{
+  display:flex;align-items:flex-end;gap:.8rem;flex-wrap:wrap;
+  margin:-.35rem 0 .9rem;
+}
+.admin-page .admin-head-main{min-width:0;flex:1 1 16rem}
+.admin-page .admin-head-title{
+  margin:0;font-size:1.35rem;font-weight:750;letter-spacing:-.02em;line-height:1.25;
+}
+.admin-page .admin-head-sub{margin:.2rem 0 0;color:var(--dim);font-size:.8rem;line-height:1.55}
+
+/* ---------- 工具条分组 ---------- */
+/* 一块工具 = 「小标题 + 一行控件」。后台的筛选和新建混在一行时，
+   手机上根本分不清哪个输入框是干什么的。 */
+.admin-page .toolbar-block{margin-bottom:.85rem}
+.admin-page .toolbar-block:last-of-type{margin-bottom:0}
+.admin-page .toolbar-title{
+  font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 .4rem;
+}
+.admin-page .toolbar-title:empty{display:none}
+.admin-page .toolbar-block .hint{margin:0}
+
+/* 标签栏吸顶：后台有 7 个标签，滚动到下面时还能随时切换 */
+.admin-page .tabs{
+  position:sticky;top:var(--topbar-h);z-index:1020;
+  margin:-.35rem 0 1.05rem;
+  background:var(--panel);
+  box-shadow:var(--shadow), 0 10px 24px -20px rgba(18,26,40,.5);
+}
+.admin-page .tabs .tab{position:relative}
+/* 当前标签下方一条指示线，横向滚动时更容易看出选中项 */
+.admin-page .tabs .tab.active{position:relative}
+
+/* 概览区：状态条（横向键值）+ 配置卡 + 站点设置卡，整页按卡片纵向堆叠，
+   避免「左卡很长、右卡很短」的两栏失衡 */
+
+/* 每个 tab 面板内部的纵向间距统一交给 flex gap，
+   不依赖「相邻 .card」兄弟选择器 —— 后者在 grid / stats 夹在中间时会失效。 */
+.admin-page .tab-panel{display:flex;flex-direction:column;gap:1rem}
+.admin-page .tab-panel > .card{margin-top:0}
+.admin-page .tab-panel > .stats{margin-bottom:0}
+
+/* 分组小标题：细横线延伸到卡片右缘，形成清晰分段 */
+.admin-page .cfg-group{margin-top:1.2rem}
+.admin-page .cfg-group:first-child{margin-top:0}
+.admin-page .cfg-group-title{
+  display:flex;align-items:center;gap:.55rem;margin:0 0 .05rem;
+  font-size:.7rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+}
+.admin-page .cfg-group-title::after{content:"";flex:1;height:1px;background:var(--line-2)}
+.admin-page .cfg-group-note{margin:.4rem 0 0;font-size:.74rem;color:var(--dim);line-height:1.55}
+/* 组内最后一行不再画分隔线 */
+.admin-page .cfg-group .switch:last-child{border-bottom:0}
+/* 开关行：说明文字过长时允许收缩，别把右侧控件挤走 */
+.admin-page .switch > div:first-child{min-width:0}
+
+/* 数值输入框：统一宽度、右对齐、等宽数字、去掉步进箭头 */
+.admin-page .num{
+  width:6.5rem;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums;
+}
+/* 表格里的数字列：表头跟着数值一起右对齐，且不要套用输入框的固定宽度 */
+.admin-page .table-wrap th.num,
+.admin-page .table-wrap td.num{width:auto;text-align:right;font-variant-numeric:tabular-nums}
+.admin-page .table-wrap th.num{font-family:inherit}
+/* 记录页「时间」列：时间戳靠左读着顺，表头同步靠左（.num 默认右对齐会顶到表格右缘） */
+.admin-page .table-wrap th.num.time,
+.admin-page .table-wrap td.num.time{text-align:left}
+.admin-page .num::-webkit-outer-spin-button,
+.admin-page .num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.admin-page .num[type=number]{-moz-appearance:textfield}
+/* 下拉：与数字框视觉重量一致 */
+.admin-page .sel{width:8.5rem;flex:0 0 auto}
+
+/* 4 个上传上限：2×2 紧凑网格，每格「标签在左 + 窄数字框在右」 */
+.admin-page .mini-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.55rem 1.6rem;margin:.55rem 0 .1rem;
+}
+.admin-page .mini-item{display:flex;align-items:center;justify-content:space-between;gap:.8rem}
+.admin-page .mini-item .hint{margin:0;font-size:.76rem;color:var(--dim);min-width:0}
+.admin-page .mini-item .input{width:6.5rem;flex:0 0 auto}
+
+/* 站点设置：统一字段块，跨列字段用 .span-2 */
+.admin-page .site-grid{gap:1.15rem 1.5rem}
+.admin-page .site-field{min-width:0}
+.admin-page .site-field.span-2{grid-column:1/-1}
+.admin-page .site-field .label{margin:0 0 .4rem}
+.admin-page .site-field .hint{margin:.35rem 0 0}
+/* 字段内部的并排控件（端口 + 加密方式、图标 + 上传按钮）：
+   桌面并排，手机上竖着排，否则 9rem 的下拉框会被挤到换行 */
+.admin-page .field-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.admin-page .field-row .num{flex:1 1 6rem;width:auto;min-width:0}
+.admin-page .field-row .sel{flex:1 1 9rem;width:auto;min-width:0}
+/* 图标预览 + 按钮：按钮允许换行，预览图固定大小 */
+.admin-page .icon-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.admin-page .icon-row .btn{flex:0 0 auto}
+
+/* 预设 LOGO 列表：预览图 / 名称 / 文件 / 排序输入 / 启用开关 */
+.admin-page .preset-thumb{
+  width:44px;height:44px;object-fit:contain;display:block;border-radius:8px;
+  border:1px solid var(--line-2);background:#fff;   /* 白底：透明 LOGO 才看得清 */
+}
+.admin-page .preset-name{font-weight:600}
+.admin-page .preset-row .badge{margin-left:.4rem;font-size:.66rem;padding:.1rem .4rem}
+.admin-page .preset-file{font-size:.74rem;color:var(--dim)}
+.admin-page .preset-sort{
+  width:4.6rem;height:30px;padding:0 .45rem;text-align:center;
+  font-size:.78rem;font-variant-numeric:tabular-nums;
+}
+/* 停用：整行压暗，一眼能看出前台看不到它 */
+.admin-page .preset-row.is-off .preset-thumb{opacity:.35;filter:grayscale(1)}
+.admin-page .preset-row.is-off .preset-name{color:var(--dim)}
+.admin-page .preset-row td[data-label="启用"] .tgl{vertical-align:middle}
+
+@media(max-width:620px){
+  .admin-page .mini-grid{grid-template-columns:1fr}
+  .admin-page .switch{flex-wrap:wrap;gap:.5rem}
+  /* 窄屏控件掉到第二行后右对齐，保持与上一行同一条右边界 */
+  .admin-page .switch > .tgl,
+  .admin-page .switch > .num,
+  .admin-page .switch > .sel{margin-left:auto}
+  .admin-page .switch .num,
+  .admin-page .switch .sel{width:100%;max-width:12rem}
+  .admin-page .site-field.span-2{grid-column:auto}
+  /* 窄屏数字框恢复左对齐：整行宽度下右对齐会显得数字浮在中间 */
+  .admin-page .mini-item .num{text-align:left}
+}
+
+/* ============================================================
+   后台 · 手机适配
+   —— 表格在窄屏从「横向滚动」改成「卡片式堆叠」：
+      每行变成一张卡，字段名用 data-label 显示在左侧。
+      横��滚动的表格在手机上最容易出的问题是「操作列看不到」，
+      管理员会以为没有改密 / 封禁按钮。
+   ============================================================ */
+@media(max-width:760px){
+  /* 容器留够内边距，卡片不贴边 */
+  .admin-page .wrap{padding:.9rem .75rem 2.5rem}
+
+  /* 标签栏吸顶并支持横向滑动 */
+  .admin-page .tabs{
+    top:var(--topbar-h);
+    margin:0 0 .85rem;
+    display:flex;width:100%;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;
+    border-radius:10px;padding:.25rem;
+  }
+  .admin-page .tabs::-webkit-scrollbar{display:none}
+  .admin-page .tabs .tab{flex:0 0 auto;padding:.4rem .7rem;font-size:.8rem;scroll-snap-align:start}
+
+  /* 概览：两个数字块一行 */
+  .admin-page .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-bottom:.85rem}
+  .admin-page .stat{padding:.7rem .75rem .65rem}
+  .admin-page .stat .v{font-size:1.15rem}
+
+  /* 工具条：输入框独占一行，按钮成组，避免挤成一团 */
+  .admin-page .toolbar{gap:.45rem}
+  .admin-page .toolbar .input{flex:1 1 100%;width:auto !important;min-width:0}
+  .admin-page .toolbar .btn{flex:1 1 auto;min-height:38px}
+  .admin-page .toolbar .grow{display:none}
+  /* 创建 / 生成这类主按钮单独占一行更醒目 */
+  .admin-page .toolbar .btn-brand{flex:1 1 100%}
+
+  /* 表格 → 卡片 */
+  .admin-page .table-wrap{
+    border:0;background:transparent;max-height:none;overflow:visible;
+    -webkit-overflow-scrolling:auto;
+  }
+  .admin-page .table-wrap table,
+  .admin-page .table-wrap tbody,
+  .admin-page .table-wrap tr,
+  .admin-page .table-wrap td{display:block;width:auto;min-width:0;white-space:normal}
+  .admin-page .table-wrap table{min-width:0;font-size:.84rem}
+  .admin-page .table-wrap thead{display:none}
+  .admin-page .table-wrap tr{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:.65rem .8rem;margin-bottom:.6rem;box-shadow:var(--shadow);
+  }
+  .admin-page .table-wrap tbody tr:hover{background:var(--panel)}
+  .admin-page .table-wrap td{
+    display:flex;align-items:flex-start;gap:.9rem;justify-content:space-between;
+    padding:.42rem 0;border-bottom:1px solid var(--line-2);text-align:right;
+  }
+  .admin-page .table-wrap td:last-child{border-bottom:0;padding-bottom:0}
+  .admin-page .table-wrap td::before{
+    content:attr(data-label);flex:0 0 4.6rem;text-align:left;
+    color:var(--dim);font-size:.74rem;font-weight:600;line-height:1.6;
+  }
+  /* 数字列在卡片里跟着标签左对齐更好读 */
+  .admin-page .table-wrap td.num{text-align:right}
+  /* 空态不套卡片样式 */
+  .admin-page .table-wrap td.empty{padding:1.4rem 0;justify-content:center}
+  .admin-page .table-wrap td.empty::before{content:none}
+  /* 长内容列不再截断，卡片里可以完整换行 */
+  .admin-page .table-wrap td.clip{max-width:none;overflow:visible;text-overflow:clip}
+  .admin-page .table-wrap .clip-text{max-width:none;white-space:normal;word-break:break-all}
+  /* 操作按钮铺满一行，方便点 */
+  .admin-page .table-wrap td .row{justify-content:flex-end;gap:.4rem;flex-wrap:wrap}
+  .admin-page .table-wrap td .btn-sm{min-height:32px}
+  /* 用户行有 5 个操作按钮：均分成网格，比挤成一排好按 */
+  .admin-page .table-wrap td .row.ops{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}
+  .admin-page .table-wrap td .row.ops .btn{width:100%}
+  /* 黑名单的「操作列吸附右侧」在卡片模式下没有意义 */
+  #tab-blacklist th:last-child,
+  #tab-blacklist td:last-child{position:static;box-shadow:none;background:transparent}
+  #tab-blacklist thead th:last-child{background:transparent}
+  #tab-blacklist tbody tr:hover td:last-child{background:transparent}
+}
+
+/* ---------- 概览数字块 ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-bottom:1rem}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:.9rem 1rem .8rem;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--brand),transparent 85%)}
+.stat .k{font-size:.72rem;color:var(--dim);letter-spacing:.04em}
+.stat .v{font-size:1.4rem;font-weight:700;font-family:ui-monospace,Menlo,monospace;
+  margin-top:.2rem;letter-spacing:-.02em;line-height:1.3}
+
+/* ============ 后台：水印配置（滑块 + 实时预览） ============ */
+.wm-range-wrap{display:flex;align-items:center;gap:.7rem}
+.wm-range{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:999px;
+  background:linear-gradient(90deg,var(--brand-soft),var(--line));outline:none;cursor:pointer}
+.wm-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--brand);border:2px solid var(--panel);box-shadow:0 1px 5px rgba(18,26,40,.3);cursor:pointer}
+.wm-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--brand);
+  border:2px solid var(--panel);box-shadow:0 1px 5px rgba(18,26,40,.3);cursor:pointer}
+.wm-range:focus-visible{box-shadow:0 0 0 3px var(--brand-soft)}
+.wm-range-val{min-width:3.8rem;text-align:right;font-family:ui-monospace,Menlo,monospace;
+  font-size:.8rem;color:var(--dim)}
+.wm-preview-wrap{display:flex;gap:1.2rem;align-items:flex-start;flex-wrap:wrap}
+.wm-preview{width:240px;max-width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff;
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.wm-preview-side{flex:1;min-width:180px;display:flex;flex-direction:column;gap:.6rem;align-items:flex-start}
