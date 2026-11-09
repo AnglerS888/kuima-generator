@@ -72,12 +72,17 @@
       <p class="card-sub">
         版本号来自仓库根目录的 <code>VERSION</code> 文件。服务会<b>每天自动检查一次</b>远端版本，
         发现新版本时这里会直接提示；也可以点「检查更新」立即比对。
-        更新会下载产物替换程序，服务重启后页面自动刷新。
+        更新会优先下载发布产物，没有产物就下载源码本地编译（需要 Go），
+        过程会显示「下载 → 编译 → 替换 → 重启」的实时进度与失败原因。
       </p>
       <div class="toolbar">
         <button class="btn btn-brand" id="btnCheckUpdate" type="button">检查更新</button>
         <button class="btn btn-ghost" id="btnDoUpdate" type="button" style="display:none">立即更新</button>
         <span class="hint" id="updateState" role="status" aria-live="polite">点击「检查更新」查看是否有新版本</span>
+      </div>
+      <div class="up-progress" id="upProgress" style="display:none">
+        <div class="up-bar"><i id="upBar"></i></div>
+        <div class="up-msg" id="upMsg">—</div>
       </div>
     </div>
 
@@ -1187,6 +1192,14 @@ async function loadUpdateStatus() {
       upHint('每天自动检查一次' + (st.nextAutoCheck ? '，下次检查：' + upTime(st.nextAutoCheck) : '') +
         '；也可以立即点「检查更新」');
     }
+    // 有正在跑的任务（比如更新中途刷新了页面）就接着显示进度
+    if (!upPolling) {
+      const j = await api('/api/admin/update/job').catch(() => null);
+      if (j && j.job && !j.job.done) {
+        upHint('更新进行中…');
+        pollUpdateJob(j.job.version || '');
+      }
+    }
   } catch (e) {
     // 读不到状态就保持手动检查，不打扰用户
   }
@@ -1205,21 +1218,106 @@ async function checkUpdate(force) {
   }
 }
 
-// waitForRestart 轮询 /api/health，读到新版本号后自动刷新页面
+// ---------- 更新进度 ----------
+// 更新是异步任务：POST /apply 只负责启动，后端按阶段（下载/编译/替换/重启）
+// 更新状态，这里轮询 /api/admin/update/job 把进度画出来。
+const upProgressBox = $('#upProgress');
+const upBarEl = $('#upBar');
+const upMsgEl = $('#upMsg');
+let upPolling = false;
+
+function upProgress(show, pct, msg, isErr) {
+  if (!upProgressBox) return;
+  upProgressBox.style.display = show ? '' : 'none';
+  if (!show) return;
+  const indet = typeof pct !== 'number' || pct < 0;
+  upBarEl.parentNode.classList.toggle('indet', indet);
+  if (!indet) upBarEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  upMsgEl.classList.toggle('err', !!isErr);
+  upMsgEl.textContent = msg || '';
+}
+
+function upBusy(on) {
+  upCheckBtn.disabled = !!on;
+  upDoBtn.disabled = !!on;
+}
+
+// waitForRestart 轮询 /api/health：版本号变了（或等于期望值）就刷新页面
 async function waitForRestart(expected) {
-  const deadline = Date.now() + 90000;
+  const before = (updateInfo && updateInfo.current) || '';
+  const deadline = Date.now() + 180000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 1000));
     try {
       const r = await fetch('/api/health', {cache: 'no-store'});
       if (!r.ok) continue;
       const h = await r.json();
-      if ((h.version || '') === expected) { location.reload(); return; }
+      const v = h.version || '';
+      if (expected ? v === expected : (before && v !== before)) { location.reload(); return; }
     } catch (e) { /* 服务还没起来，继续等 */ }
   }
   upHint('等待超时：服务可能没有自动重启，请手动重启后刷新页面。');
-  upCheckBtn.disabled = false;
-  upDoBtn.disabled = false;
+  upBusy(false);
+}
+
+// pollUpdateJob 轮询任务进度，直到完成 / 失败 / 超时
+async function pollUpdateJob(expected) {
+  if (upPolling) return;
+  upPolling = true;
+  upBusy(true);
+  let stage = '';
+  try {
+    const deadline = Date.now() + 30 * 60 * 1000;
+    while (Date.now() < deadline) {
+      let job = null, offline = false;
+      try {
+        job = (await api('/api/admin/update/job')).job;
+      } catch (e) {
+        offline = true;   // 服务正在重启时会断开
+      }
+      if (offline) {
+        if (stage === 'restart' || stage === 'swap') {
+          upHint('正在重启，等待服务恢复…');
+          await waitForRestart(expected);
+          return;
+        }
+        await new Promise(r => setTimeout(r, 800));
+        continue;
+      }
+      if (!job) {
+        // 任务状态在内存里，进程重启后就没了：说明已经换过版本
+        if (stage) { upHint('服务已重启，正在刷新…'); location.reload(); return; }
+        await new Promise(r => setTimeout(r, 800));
+        continue;
+      }
+      stage = job.stage || '';
+      if (job.stage === 'error') {
+        upProgress(true, 0, job.message || job.error || '更新失败', true);
+        upHint('更新失败，详见上方提示');
+        upBusy(false);
+        return;
+      }
+      upProgress(true, job.percent, job.message || '更新中…');
+      if (job.done) {
+        if (job.stage === 'done') {
+          upProgress(true, 100, job.message || '已完成');
+          upHint(job.message || '已完成');
+          upBusy(false);
+          updateInfo = null;
+          loadUpdateStatus();
+          return;
+        }
+        upHint('正在重启，等待服务恢复…');
+        await waitForRestart(expected || job.version || '');
+        return;
+      }
+      await new Promise(r => setTimeout(r, 700));
+    }
+    upProgress(true, 0, '更新超时：请查看服务日志确认结果', true);
+    upBusy(false);
+  } finally {
+    upPolling = false;
+  }
 }
 
 upCheckBtn.onclick = () => checkUpdate(true);
@@ -1227,20 +1325,21 @@ upCheckBtn.onclick = () => checkUpdate(true);
 upDoBtn.onclick = async () => {
   if (!updateInfo || !updateInfo.hasUpdate) return;
   const ok = await layer.confirm(
-    '将下载 v' + updateInfo.latest + ' 并替换当前程序，随后自动重启。' +
+    '将更新到 v' + updateInfo.latest + '：下载新版本并替换当前程序，随后自动重启。' +
     '更新期间页面会短暂不可用，完成后自动刷新。',
     {title: '在线更新', okText: '开始更新'});
   if (!ok) return;
-  upDoBtn.disabled = true;
-  upCheckBtn.disabled = true;
-  upHint('正在下载并替换程序…');
+  upBusy(true);
+  upProgress(true, 0, '正在启动更新任务…');
   try {
     await api('/api/admin/update/apply', {method: 'POST'});
   } catch (e) {
-    // 服务在响应后立刻重启，请求被断开属于正常现象，继续等健康检查
+    upProgress(true, 0, '启动更新失败：' + e.message, true);
+    upBusy(false);
+    return;
   }
-  upHint('正在重启，等待服务恢复…');
-  waitForRestart(updateInfo.latest);
+  upHint('更新中…');
+  pollUpdateJob(updateInfo.latest);
 };
 
 $('#saveSettings').onclick = async () => {

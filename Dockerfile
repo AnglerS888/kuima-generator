@@ -5,9 +5,14 @@
 # 镜像站又可能缺某个 tag 的 manifest（报 "load metadata ... not found"）。
 # 这时不用改 Dockerfile，直接换来源即可：
 #   docker build --build-arg GO_IMAGE=docker.m.daocloud.io/library/golang:1.22-alpine \
-#                --build-arg RUNTIME_IMAGE=docker.m.daocloud.io/library/alpine:3.20 .
+#                --build-arg RUNTIME_IMAGE=docker.m.daocloud.io/library/golang:1.22-alpine .
+#
+# 运行镜像直接用 golang 基座（不是精简的 alpine）：后台「立即更新」在没有
+# 发布产物时会下载源码并在容器内 go build，所以镜像里得带编译器。
+# 代价是镜像约 300MB；想要小镜像可 --build-arg RUNTIME_IMAGE=alpine:3.20，
+# 但那样容器内就只能下载现成的 Release 产物来更新。
 ARG GO_IMAGE=golang:1.22-alpine
-ARG RUNTIME_IMAGE=alpine:3.20
+ARG RUNTIME_IMAGE=golang:1.22-alpine
 
 FROM ${GO_IMAGE} AS builder
 
@@ -43,20 +48,28 @@ RUN V="${VERSION:-$(cat VERSION 2>/dev/null || echo dev)}" && \
     -o wxcode ./cmd/wxcode
 
 # ============================================================
-# 阶段 2：运行
+# 阶段 2：运行（golang:alpine 基座，容器内可自编译更新）
 # ============================================================
 FROM ${RUNTIME_IMAGE}
 
-# 换阿里云镜像源加速；补 tzdata（日志要打东八区时间）与证书（logo 支持 http(s) 拉取）
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk add --no-cache tzdata ca-certificates
+# 换阿里云镜像源加速（国内 dl-cdn 常超时），并补三样运行期需要的东西：
+#   git             —— 容器内 go build 时，GOPROXY 出错会回退 direct 直连 VCS，
+#                      golang:alpine 本身不带 git，缺了会报 "git: executable file not found"
+#   tzdata          —— 日志要打东八区时间
+#   ca-certificates —— 拉 logo、检查更新、下载源码都走 HTTPS
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories && \
+    apk add --no-cache git tzdata ca-certificates
 
+# GOPROXY 给容器内「立即更新」的 go build 用：第一个挂了自动换下一个（"|" 语义）
 ENV TZ=Asia/Shanghai \
     PORT=8080 \
     LOG_LEVEL=info \
     LOG_FORMAT=text \
     LOG_OUTPUT=both \
-    LOG_ACCESS=1
+    LOG_ACCESS=1 \
+    GOPROXY=https://goproxy.cn|https://goproxy.io|direct \
+    GOTOOLCHAIN=auto
 
 WORKDIR /app
 

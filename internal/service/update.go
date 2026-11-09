@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -28,9 +27,9 @@ import (
 
 const (
 	updateCacheTTL   = 5 * time.Minute
+	updateErrTTL     = 30 * time.Second // 检查失败只缓存一会儿，方便立刻重试
 	updateHTTPTime   = 8 * time.Second
 	updateMinSize    = 1 << 20 // 产物至少 1MB，挡住错误页/空文件
-	updateMaxSize    = 200 << 20
 	updateMaxVersion = 64
 
 	// 自动检查：启动后先等一会儿（避开启动时的其它初始化），之后每 24 小时一次。
@@ -50,14 +49,6 @@ type UpdateInfo struct {
 	Asset       string `json:"asset,omitempty"`  // 预期产物名
 	Notes       string `json:"notes,omitempty"`  // 附加说明
 	Error       string `json:"error,omitempty"`  // 拉取失败原因（有值时其它字段仍返回）
-}
-
-// ApplyResult 是「执行更新」的结果。
-type ApplyResult struct {
-	Version     string `json:"version"`
-	Asset       string `json:"asset"`
-	Restart     bool   `json:"restart"`
-	InContainer bool   `json:"inContainer"`
 }
 
 var (
@@ -116,8 +107,14 @@ func AssetName() string {
 func CheckUpdate(ctx context.Context, force bool) UpdateInfo {
 	updateMu.Lock()
 	defer updateMu.Unlock()
-	if !force && updateCache != nil && time.Since(updateAt) < updateCacheTTL {
-		return *updateCache
+	if !force && updateCache != nil {
+		ttl := updateCacheTTL
+		if updateCache.Error != "" && updateCache.Latest == "" {
+			ttl = updateErrTTL
+		}
+		if time.Since(updateAt) < ttl {
+			return *updateCache
+		}
 	}
 
 	info := UpdateInfo{
@@ -260,24 +257,24 @@ func fetchLatestVersion(ctx context.Context) (string, string, error) {
 		list = append(list, source{"mirror", strings.TrimRight(m, "/") + "/" + githubRaw})
 	}
 
-	var lastErr error
+	var errs []string
 	for _, s := range list {
 		v, err := fetchText(ctx, s.url)
 		if err != nil {
-			lastErr = err
+			errs = append(errs, s.name+"："+err.Error())
 			continue
 		}
 		v = normalizeVersion(v)
 		if v == "" {
-			lastErr = fmt.Errorf("%s 返回的版本号为空", s.name)
+			errs = append(errs, s.name+"：返回的版本号为空")
 			continue
 		}
 		return v, s.name, nil
 	}
-	if lastErr == nil {
-		lastErr = errors.New("没有可用的版本来源")
+	if len(errs) == 0 {
+		return "", "", errors.New("没有可用的版本来源")
 	}
-	return "", "", lastErr
+	return "", "", fmt.Errorf("所有来源都不可用（%s）", strings.Join(errs, "；"))
 }
 
 // fetchText 读一个小文本文件（VERSION 只有十几字节）。
@@ -387,126 +384,4 @@ func assetURLs() []string {
 		urls = append(urls, strings.TrimRight(m, "/")+"/"+gh)
 	}
 	return urls
-}
-
-// ApplyUpdate 下载并替换当前可执行文件，成功后调用方负责重启。
-func ApplyUpdate(ctx context.Context) (ApplyResult, error) {
-	info := CheckUpdate(ctx, true)
-	if info.Error != "" && info.Latest == "" {
-		return ApplyResult{}, fmt.Errorf("检查更新失败：%s", info.Error)
-	}
-	if !info.HasUpdate {
-		return ApplyResult{}, fmt.Errorf("已经是最高版本（v%s）", info.Current)
-	}
-
-	exe, err := os.Executable()
-	if err != nil {
-		return ApplyResult{}, fmt.Errorf("定位当前程序失败：%w", err)
-	}
-	exe, err = filepath.EvalSymlinks(exe)
-	if err != nil {
-		return ApplyResult{}, fmt.Errorf("解析程序路径失败：%w", err)
-	}
-
-	var lastErr error
-	for _, u := range assetURLs() {
-		if err := downloadTo(ctx, u, exe+".new"); err == nil {
-			if err := swapBinary(exe); err != nil {
-				return ApplyResult{}, err
-			}
-			return ApplyResult{Version: info.Latest, Asset: AssetName(), Restart: true, InContainer: info.InContainer}, nil
-		} else {
-			lastErr = err
-		}
-	}
-	if lastErr == nil {
-		lastErr = errors.New("没有可用的下载地址")
-	}
-	return ApplyResult{}, fmt.Errorf("下载发布产物失败：%w", lastErr)
-}
-
-// downloadTo 下载产物到 dest，并做大小与可执行格式校验。
-func downloadTo(ctx context.Context, url, dest string) error {
-	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := updateClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d（%s）", resp.StatusCode, url)
-	}
-
-	f, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
-	if err != nil {
-		return err
-	}
-	n, copyErr := io.Copy(f, io.LimitReader(resp.Body, updateMaxSize))
-	closeErr := f.Close()
-	if copyErr != nil || closeErr != nil {
-		_ = os.Remove(dest)
-		if copyErr != nil {
-			return copyErr
-		}
-		return closeErr
-	}
-	if n < updateMinSize {
-		_ = os.Remove(dest)
-		return fmt.Errorf("产物过小（%d 字节），可能不是有效程序", n)
-	}
-	// 粗校验文件头：Linux 是 ELF，Windows 是 MZ
-	head := make([]byte, 2)
-	if fh, err := os.Open(dest); err == nil {
-		_, _ = io.ReadFull(fh, head)
-		_ = fh.Close()
-	}
-	switch runtime.GOOS {
-	case "windows":
-		if head[0] != 'M' || head[1] != 'Z' {
-			_ = os.Remove(dest)
-			return errors.New("产物不是 Windows 可执行文件")
-		}
-	default:
-		if head[0] != 0x7f || head[1] != 'E' {
-			_ = os.Remove(dest)
-			return errors.New("产物不是 Linux 可执行文件")
-		}
-	}
-	return nil
-}
-
-// ScheduleRestart 延迟重启：先把 HTTP 响应写回浏览器，再换进程。
-func ScheduleRestart(delay time.Duration) {
-	go func() {
-		time.Sleep(delay)
-		if err := RestartSelf(); err != nil {
-			logger.Error("自动重启失败，请手动重启服务", "error", err.Error())
-		}
-	}()
-}
-
-// swapBinary 用 exe.new 替换 exe。
-//
-// 正在运行的程序文件不能直接覆盖，所以先把旧文件改名成 .old 再移入新文件：
-// Linux 上运行中的进程仍持有旧 inode，Windows 允许重命名运行中的 exe。
-func swapBinary(exe string) error {
-	newPath, oldPath := exe+".new", exe+".old"
-	_ = os.Remove(oldPath)
-	if err := os.Rename(exe, oldPath); err != nil {
-		return fmt.Errorf("备份旧程序失败：%w", err)
-	}
-	if err := os.Rename(newPath, exe); err != nil {
-		// 尽量把旧文件还原，避免程序消失
-		_ = os.Rename(oldPath, exe)
-		return fmt.Errorf("替换程序失败：%w", err)
-	}
-	if runtime.GOOS != "windows" {
-		_ = os.Chmod(exe, 0o755)
-	}
-	return nil
 }

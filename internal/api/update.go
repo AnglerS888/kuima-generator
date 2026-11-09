@@ -67,7 +67,10 @@ func handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, info)
 }
 
-// handleUpdateApply 下载并替换程序，随后自动重启（页面需要轮询 /api/health）。
+// handleUpdateApply 启动一次异步更新任务，立即返回；进度看 GET /api/admin/update/job。
+//
+// 更新可能要下载几十 MB 或编译几分钟，同步返回会让页面/网关超时，
+// 所以这里只负责「点火」，前端轮询任务状态显示进度。
 func handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -79,18 +82,20 @@ func handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := service.ApplyUpdate(r.Context())
+	job, err := service.StartApply()
 	if err != nil {
-		httpx.WriteErr(w, http.StatusBadRequest, err)
+		httpx.WriteErr(w, http.StatusConflict, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"ok":          true,
-		"version":     res.Version,
-		"asset":       res.Asset,
-		"restart":     res.Restart,
-		"inContainer": res.InContainer,
-	})
-	// 给响应留出写回时间再换进程
-	service.ScheduleRestart(800 * time.Millisecond)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "job": job})
+}
+
+// handleUpdateJob 返回当前（或最近一次）更新任务的进度。
+func handleUpdateJob(w http.ResponseWriter, r *http.Request) {
+	if updateDisabled() {
+		httpx.WriteErr(w, http.StatusForbidden, errors.New("在线更新已被管理员关闭（UPDATE_DISABLE=1）"))
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"job": service.GetJob()})
 }

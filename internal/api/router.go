@@ -82,6 +82,7 @@ func NewRouter() http.Handler {
 	// 在线更新：检查远端 VERSION / 下载产物替换自身并重启（UPDATE_DISABLE=1 可关闭）
 	mux.HandleFunc("GET /api/admin/update/check", admin(handleUpdateCheck))
 	mux.HandleFunc("GET /api/admin/update/status", admin(handleUpdateStatus))
+	mux.HandleFunc("GET /api/admin/update/job", admin(handleUpdateJob))
 	mux.HandleFunc("POST /api/admin/update/apply", middleware.ProtectAPI(admin(handleUpdateApply)))
 	mux.HandleFunc("GET /api/admin/settings", admin(handleAdminGetSettings))
 	mux.HandleFunc("PUT /api/admin/settings", admin(handleAdminSaveSettings))

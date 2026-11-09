@@ -78,8 +78,10 @@ ADMIN_USER="admin"
 ADMIN_PASSWORD=""
 
 # 基础镜像（Dockerfile 里用 ARG 接收，构建时可用 build-arg 覆盖）
+# 运行镜像也用 golang:alpine：镜像里带 Go，后台「立即更新」才能在容器内
+# 下载源码 + go build（镜像约 300MB）。想回小镜像就把 RUNTIME 换成 alpine:3.20。
 GO_NAME="golang"; GO_TAG="1.22-alpine"
-RUNTIME_NAME="alpine"; RUNTIME_TAG="3.20"
+RUNTIME_NAME="golang"; RUNTIME_TAG="1.22-alpine"
 
 # 国内服务器直连 docker.io 常失败，而 daemon.json 里配的镜像站又可能缺某个 tag 的 manifest。
 # 这里按顺序尝试；BASE_REGISTRY 显式指定时优先用它（如 docker.m.daocloud.io）。

@@ -180,6 +180,11 @@ docker compose up -d --build
 docker compose logs -f wxcode     # 没设密码时，这里能看到随机生成的管理员密码
 ```
 
+> 运行镜像用的是 `golang:alpine`（自带 Go + git），所以后台「立即更新」在拿不到发布产物时
+> 可以直接**在容器里下载源码并编译**，镜像约 300MB。想换回精简镜像（约 20MB）：
+> `docker build --build-arg RUNTIME_IMAGE=alpine:3.20 -t wxcode .`，
+> 这样容器内只能下载现成的 Release 产物来更新，编译这条路会提示改用 `bin/deploy.sh`。
+
 ### Linux
 
 ```bash
@@ -240,8 +245,13 @@ $env:ADMIN_PASSWORD = "换成你自己的密码"
 - **自动检查**：服务启动约 20 秒后查一次，之后**每 24 小时**查一次；结果缓存在内存里，
   后台「版本与更新」一打开就会显示「发现新版本」或「已是最新」，不用手动点。
 - **检查更新**：依次从 Gitee → GitHub → 加速镜像拉 `VERSION`，与当前版本比对；5 分钟内走缓存。
-- **立即更新**：下载当前平台的发布产物，替换程序后自动重启，页面会轮询 `/api/health`，
-  读到新版本号后**自动刷新**。
+- **立即更新**：点「更新到 vX」后后台会跑一个**异步任务**，页面实时显示进度：
+  `下载发布产物 → 校验 → 替换程序 → 重启`；**没有发布产物时会自动改成「下载源码 → 编译」**（需要环境里有 Go）。
+  失败时直接显示原因（哪一步、哪个地址、HTTP 状态），不用去翻日志。重启完成后页面轮询
+  `/api/health` 读到新版本号，**自动刷新**。
+- **容器内更新**：镜像基于 `golang:alpine`（带 Go + git + GOPROXY 配置），没有 Releases 产物时
+  也能在容器里完成「下载源码 → 编译 → 替换 → 重启」；`bin/deploy.sh` 构建的镜像同样是这个基座。
+  用了精简的 `alpine` 运行镜像时，编译这条路会给出明确提示并建议重新构建镜像。
 
 发版时把 `VERSION` 改成新版本号（README 顶部的版本徽章同步改一下），
 再按平台命名把产物上传到 Releases 的 latest：
@@ -259,6 +269,7 @@ wxcode-windows-amd64.exe  wxcode-darwin-arm64 …
 | `UPDATE_CHECK_INTERVAL` | 自动检查间隔，默认 `24h`（如 `6h`；小于 1 分钟按 24h 处理） |
 | `UPDATE_VERSION_URL` | 直接指定远端 VERSION 地址（自建更新源 / 内网） |
 | `UPDATE_ASSET_BASE` | 直接指定产物下载目录（如 `https://example.com/dist`） |
+| `UPDATE_SOURCE_URL` | 直接指定源码归档地址（`.tar.gz`，用于「下载源码 → 编译」这条路） |
 | `UPDATE_GITEE_REPO` / `UPDATE_GITHUB_REPO` | 换仓库，默认 `anglers/kuima-generator` / `AnglerS888/kuima-generator` |
 | `UPDATE_BRANCH` / `UPDATE_MIRROR` | 分支（默认 `main`）/ GitHub 加速前缀 |
 
