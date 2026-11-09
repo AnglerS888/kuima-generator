@@ -9,7 +9,8 @@ services:
         VERSION: "${VERSION:-}"
         # 构建时间自动注入，启动日志里能看到镜像构建于何时
         BUILD_TIME: "${BUILD_TIME:-unknown}"
-    image: wxcode:1.0.0
+    # 本地镜像标签：跟着上面的 VERSION 走；没设就是 latest
+    image: wxcode:${VERSION:-latest}
     container_name: wxcode
     ports:
       - "8080:8080"
