@@ -3,7 +3,9 @@
 # 葵码生成器 — 一键部署脚本
 #
 # 用法：
-#   ./deploy.sh                    # 自动选源（国内 Gitee / 国外 GitHub）拉 main → 构建 → 换容器
+#   ./deploy.sh                    # 自动选线路（国内 Gitee / 国外 GitHub）拉 main → 构建 → 换容器
+#   ./deploy.sh --gitee            # 强制走线路 1（国内 Gitee）
+#   ./deploy.sh --github           # 强制走线路 2（国外 GitHub）
 #   ./deploy.sh --local            # 用当前工作区代码构建（不下载，适合本机调试）
 #   ./deploy.sh --status           # 查看容器状态、管理员账号与密码
 #   ./deploy.sh --reset-admin      # 把管理员密码重置成凭据文件里的值（忘记密码时用）
@@ -12,15 +14,17 @@
 #   DATA_VOLUME=wxcode-data ./deploy.sh   # 指定数据库卷名（默认 wxcode-data）
 #   BRANCH=dev ./deploy.sh         # 换分支（默认 main；找不到自动再试 master / 同名 tag）
 #
-# 源码来源（两个仓库内容保持同步）：
-#   * 国内 Gitee：https://gitee.com/anglers/kuima-generator
-#   * 国外 GitHub：https://github.com/AnglerS888/kuima-generator
-#   * 默认 SOURCE=auto：探测两边连通性，谁快先走谁，另一个自动兜底；
-#     也可强制：SOURCE=gitee ./deploy.sh / SOURCE=github ./deploy.sh
+# 代码线路（两个仓库内容保持同步，任选一条）：
+#   线路 1（国内）：https://gitee.com/anglers/kuima-generator
+#   线路 2（国外）：https://github.com/AnglerS888/kuima-generator
+#   * 默认自动：探测两边连通性，谁快先走谁，另一个兜底
+#   * 显式指定：./deploy.sh --gitee   /   ./deploy.sh --github
+#               也可 SOURCE=auto|gitee|github ./deploy.sh
+#   * 归档下载失败时，会自动改用 git clone 再走一遍这两条线路
 #   * 关掉 GitHub 加速：GH_MIRROR= ./deploy.sh（只走 GitHub 直连）
 #   * 换仓库：  GITEE_REPO=owner/repo / GITHUB_REPO=owner/repo ./deploy.sh
 #   * 换来源：  CODE_URL=https://example.com/src.tar.gz ./deploy.sh（自建 Git / 内网镜像）
-#   * 改用克隆：GIT_URL=https://gitee.com/anglers/kuima-generator.git ./deploy.sh
+#   * 直接克隆：GIT_URL=https://gitee.com/anglers/kuima-generator.git ./deploy.sh
 #
 # 管理员账号：
 #   * 默认用户名 admin，密码首次部署时随机生成（16 位十六进制），
@@ -101,10 +105,19 @@ for arg in "$@"; do
         --rollback)     ROLLBACK=1 ;;
         --status)       STATUS_ONLY=1 ;;
         --reset-admin)  RESET_ADMIN=1 ;;
+        --gitee)        SOURCE=gitee ;;       # 线路 1：国内 Gitee
+        --github)       SOURCE=github ;;      # 线路 2：国外 GitHub
+        --source=*)     SOURCE="${arg#--source=}" ;;
         -h|--help)      awk 'NR>1 && /^set -euo pipefail/{exit} NR>1{sub(/^# ?/,""); print}' "$0"; exit 0 ;;
         *) echo "未知参数：$arg（--help 看用法）" >&2; exit 2 ;;
     esac
 done
+
+# --source 只接受 auto / gitee / github
+case "$SOURCE" in
+    auto|gitee|github) ;;
+    *) echo "未知的代码线路：$SOURCE（可选 auto / gitee / github）" >&2; exit 2 ;;
+esac
 
 # ---------- 颜色 ----------
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -551,7 +564,8 @@ main() {
         log "  ✓ $(basename "$SRC_DIR")"
     else
         SRC_ORDER="$(source_order)"
-        log "[1/4] 下载源码（${BRANCH}），来源顺序：$(printf '%s' "$SRC_ORDER" | tr '\n' ' ')"
+        SRC_ORDER="$(source_order)"
+        log "[1/4] 获取源码（${BRANCH}），线路顺序：$(printf '%s' "$SRC_ORDER" | tr '\n' ' ')"
         TMP_DIR=$(mktemp -d)
         CURL_AUTH=()
         if [ -n "${GIT_TOKEN:-}" ]; then
@@ -560,9 +574,10 @@ main() {
         fi
 
         SRC_URL=""
+        CLONED=0
         while IFS= read -r url; do
             [ -n "$url" ] || continue
-            log "  尝试：$url"
+            log "  下载：$url"
             if curl -fsSL --connect-timeout 20 --max-time 300 "${CURL_AUTH[@]}" \
                     "$url" -o "$TMP_DIR/source.tar.gz"; then
                 SRC_URL="$url"
@@ -573,23 +588,50 @@ main() {
 $(candidate_urls)
 EOF
 
+        # 两条线路的归档都拿不到时，改用 git clone 再走一遍（对代理/限速更稳）
+        if [ -z "$SRC_URL" ] && command -v git >/dev/null 2>&1; then
+            warn "归档下载失败，改用 git clone 重试两条线路"
+            while IFS= read -r line; do
+                case "$line" in
+                    gitee)  git_url="https://gitee.com/${GITEE_REPO}.git" ;;
+                    github) git_url="https://github.com/${GITHUB_REPO}.git" ;;
+                    *)      continue ;;
+                esac
+                log "  克隆：$git_url"
+                if git clone --depth 1 --branch "$BRANCH" "$git_url" "$TMP_DIR/src" 2>/dev/null; then
+                    SRC_URL="git clone $git_url"
+                    CLONED=1
+                    break
+                fi
+                rm -rf "$TMP_DIR/src"
+            done <<EOF
+$(printf '%s' "$SRC_ORDER")
+EOF
+        fi
+
         if [ -z "$SRC_URL" ]; then
-            err "源码下载失败：候选地址都不可用"
-            err "  * 仓库：Gitee ${GITEE_REPO} / GitHub ${GITHUB_REPO}（分支 ${BRANCH}）"
-            err "  * 私有仓库要带 token：GIT_TOKEN=ghp_xxx $0"
-            err "  * 换克隆方式：GIT_URL=https://gitee.com/${GITEE_REPO}.git $0"
-            err "  * 或改用本地代码构建：$0 --local"
+            err "源码获取失败：两条线路都不可用"
+            err "  * 线路 1（国内）：https://gitee.com/${GITEE_REPO}"
+            err "  * 线路 2（国外）：https://github.com/${GITHUB_REPO}"
+            err "  * 分支：${BRANCH}；私有仓库带 token：GIT_TOKEN=ghp_xxx"
+            err "  * 也可以指定来源：CODE_URL=... / GIT_URL=... / 本地构建 --local"
             exit 1
         fi
         log "  ✓ 来源：${SRC_URL}"
-        log "[2/4] 解压..."
-        # 先 cd 再解压（而不是 tar -C 绝对路径）：Git Bash 会把 /tmp/xxx 转成 C:/...
-        # 传给 tar 时被当成「远程主机:文件」，Windows 上会直接报错。
-        ( cd "$TMP_DIR" && tar -xzf source.tar.gz )
-        # 用 -print -quit 取第一个目录：不能写 `find ... | head -1`，
-        # head 提前关闭管道会让 find 收到 SIGPIPE，在 set -o pipefail 下直接判失败
-        SRC_DIR=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -print -quit)
-        [ -n "$SRC_DIR" ] || { err "解压后未找到源码目录"; exit 1; }
+
+        if [ "$CLONED" = "1" ]; then
+            log "[2/4] 使用克隆下来的源码"
+            SRC_DIR="$TMP_DIR/src"
+        else
+            log "[2/4] 解压..."
+            # 先 cd 再解压（而不是 tar -C 绝对路径）：Git Bash 会把 /tmp/xxx 转成 C:/...
+            # 传给 tar 时被当成「远程主机:文件」，Windows 上会直接报错。
+            ( cd "$TMP_DIR" && tar -xzf source.tar.gz )
+            # 用 -print -quit 取第一个目录：不能写 `find ... | head -1`，
+            # head 提前关闭管道会让 find 收到 SIGPIPE，在 set -o pipefail 下直接判失败
+            SRC_DIR=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -print -quit)
+        fi
+        [ -n "$SRC_DIR" ] || { err "未找到源码目录"; exit 1; }
         log "  ✓ $(basename "$SRC_DIR")"
     fi
     [ -f "$SRC_DIR/Dockerfile" ] || { err "源码目录里没有 Dockerfile：$SRC_DIR"; exit 1; }

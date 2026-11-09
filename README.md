@@ -6,18 +6,41 @@
 
 在线生成与解析微信葵花码（太阳码），支持中心 Logo、动图、水印与批量生成。
 
+<!-- 版本号与仓库根目录的 VERSION 文件保持一致 -->
+[![Version](https://img.shields.io/badge/version-1.0.0-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
+[![Gitee](https://img.shields.io/badge/Gitee-anglers%2Fkuima--generator-C71D23?logo=gitee&logoColor=white)](https://gitee.com/anglers/kuima-generator)
+[![GitHub](https://img.shields.io/badge/GitHub-AnglerS888%2Fkuima--generator-181717?logo=github&logoColor=white)](https://github.com/AnglerS888/kuima-generator)
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
 ![CGO](https://img.shields.io/badge/CGO-%E6%97%A0%E9%9C%80-6DB33F)
 ![Docker](https://img.shields.io/badge/Docker-%E6%94%AF%E6%8C%81-2496ED?logo=docker&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows%20%7C%20Linux-x64-4B5563)
 
-[功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [常见问题](#常见问题)
+[快速开始](#快速开始) · [功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [在线更新](#在线更新) · [常见问题](#常见问题)
 
 <img src="docs/example.gif" width="420" alt="生成演示">
 
 <sub>输入链接 → 选中心 Logo → 生成并下载</sub>
 
 </div>
+
+## 快速开始
+
+**Linux 服务器（已装 Docker）**，一条命令搞定：拉源码 → 构建镜像 → 启动容器 → 打印管理员账号密码。
+
+```bash
+curl -fsSL https://gitee.com/anglers/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh && bash deploy.sh
+```
+
+> 国外服务器或想走 GitHub 线路：`bash deploy.sh --github`；重复执行即为升级，`--status` 查状态、`--rollback` 回滚。
+
+**或者用 Docker Compose 自己起**（源码已在本机）：
+
+```bash
+git clone https://gitee.com/anglers/kuima-generator.git && cd kuima-generator
+docker compose up -d --build
+```
+
+启动后访问 `http://<服务器IP>:8080/`，管理后台在 `/admin`；Windows / 裸机运行见 [部署](#部署)。
 
 ## 项目简介
 
@@ -61,7 +84,7 @@
 
 ## 部署
 
-四种方式任选其一。启动后访问 `http://localhost:8080/`，管理后台在 `/admin`。
+只想先跑起来？见 [快速开始](#快速开始)，下面是不带脚本的详细方式。四种任选其一。启动后访问 `http://localhost:8080/`，管理后台在 `/admin`。
 
 首次启动会创建管理员账号：给了 `ADMIN_PASSWORD` 就用它，没给会**随机生成并打印在启动日志**里。
 忘记密码时，带 `ADMIN_RESET_PASSWORD=1` 和一个新的 `ADMIN_PASSWORD` 重启一次即可改回。
@@ -79,32 +102,46 @@
 
 ### 一键部署（Linux 服务器）
 
-机器上有 `docker` 就能跑：脚本会从 GitHub 拉最新源码 → 构建镜像 → 替换容器 →
+机器上有 `docker` 就能跑：脚本会拉最新源码 → 构建镜像 → 替换容器 →
 **打印管理员账号密码并实际登录验证一次**。
 
 ```bash
-# 国内加速下载脚本
-curl -fsSL https://gh-proxy.org/https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
-# 直连（网络通畅时）：curl -fsSL https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+# 国外服务器安装
+curl -fsSL https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+bash deploy.sh
+
+# 国内服务器安装
+curl -fsSL https://raw.giteeusercontent.com/anglers/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
 bash deploy.sh
 ```
 
+**两条代码线路**（两个仓库内容同步，任选其一）：
+
+| 线路 | 仓库 | 适合 |
+|---|---|---|
+| 线路 1（国内） | `gitee.com/anglers/kuima-generator` | 国内服务器，速度稳定 |
+| 线路 2（国外） | `github.com/AnglerS888/kuima-generator` | 海外 / 能直连 GitHub |
+
+不指定线路时自动探测两边连通性，谁快先走谁、另一个兜底；归档下载失败会再自动
+用 `git clone` 把两条线路各试一遍。
+
 ```bash
+bash deploy.sh --gitee            # 强制线路 1（国内 Gitee）
+bash deploy.sh --github           # 强制线路 2（国外 GitHub）
 PORT=9090 bash deploy.sh          # 换宿主机端口
 bash deploy.sh --status           # 查看状态与管理员密码
 bash deploy.sh --rollback         # 回滚到上一次成功部署的镜像
 bash deploy.sh --local            # 用当前目录的源码构建（不下载）
 ```
 
-脚本默认通过国内加速镜像 `https://gh-proxy.org/` 拉源码，失败会自动回退直连 GitHub；
-想强制直连用 `GH_MIRROR= bash deploy.sh`，也可以用 `CODE_URL=` 指定任意源码归档地址。
+GitHub 线路默认走 `gh-proxy.org` 加速，想直连用 `GH_MIRROR= bash deploy.sh`；
+也可以用 `CODE_URL=` / `GIT_URL=` 指定任意来源。
 
-国内克隆源码：
+克隆源码（同样两条线路）：
 
 ```bash
-git clone https://gh-proxy.org/https://github.com/AnglerS888/kuima-generator.git
-# 网络通畅时也可以直连
-git clone https://github.com/AnglerS888/kuima-generator.git
+git clone https://gitee.com/anglers/kuima-generator.git        # 线路 1：国内
+git clone https://github.com/AnglerS888/kuima-generator.git    # 线路 2：国外
 ```
 
 ### Docker（推荐）
@@ -188,7 +225,8 @@ $env:ADMIN_PASSWORD = "换成你自己的密码"
 - **立即更新**：下载当前平台的发布产物，替换程序后自动重启，页面会轮询 `/api/health`，
   读到新版本号后**自动刷新**。
 
-发布产物按平台命名，上传到 Releases 的 latest 即可：
+发版时把 `VERSION` 改成新版本号（README 顶部的版本徽章同步改一下），
+再按平台命名把产物上传到 Releases 的 latest：
 
 ```
 wxcode-linux-amd64        wxcode-linux-arm64
