@@ -7,6 +7,7 @@
 在线生成与解析微信葵花码（太阳码），支持中心 Logo、动图、水印与批量生成。
 
 <!-- 版本号与仓库根目录的 VERSION 文件保持一致 -->
+[![在线演示](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E6%BC%94%E7%A4%BA-wx.xbao.fun-2F6BFF?logo=googlechrome&logoColor=white)](https://wx.xbao.fun)
 [![Version](https://img.shields.io/badge/version-1.0.0-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
 [![Gitee](https://img.shields.io/badge/Gitee-anglers%2Fkuima--generator-C71D23?logo=gitee&logoColor=white)](https://gitee.com/anglers/kuima-generator)
 [![GitHub](https://img.shields.io/badge/GitHub-AnglerS888%2Fkuima--generator-181717?logo=github&logoColor=white)](https://github.com/AnglerS888/kuima-generator)
@@ -15,7 +16,7 @@
 ![Docker](https://img.shields.io/badge/Docker-%E6%94%AF%E6%8C%81-2496ED?logo=docker&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows%20%7C%20Linux-x64-4B5563)
 
-[快速开始](#快速开始) · [功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [在线更新](#在线更新) · [常见问题](#常见问题)
+[在线演示](https://wx.xbao.fun) · [快速开始](#快速开始) · [功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [在线更新](#在线更新) · [常见问题](#常见问题)
 
 <img src="docs/example.gif" width="420" alt="生成演示">
 
@@ -23,15 +24,32 @@
 
 </div>
 
+## 在线演示
+
+不想自己部署？直接打开 **<https://wx.xbao.fun>** 试用：
+
+- **前台**：<https://wx.xbao.fun> —— 生成 / 解析 / 好友码 / 接口文档，免登录即可生成，登录后可用批量与更高额度。
+- **管理后台**：演示站不对外开放（可看下面的[界面预览](#界面预览)，或自己部署一套）。
+
+演示站跑的就是本仓库的代码，可能随时重建或清空数据，请不要往里放重要内容。
+
 ## 快速开始
 
 **Linux 服务器（已装 Docker）**，一条命令搞定：拉源码 → 构建镜像 → 启动容器 → 打印管理员账号密码。
+按服务器所在网络选一条：
 
 ```bash
-curl -fsSL https://gitee.com/anglers/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh && bash deploy.sh
+# 国外服务器安装
+curl -fsSL https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+bash deploy.sh
+
+# 国内服务器安装
+curl -fsSL https://raw.giteeusercontent.com/anglers/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+bash deploy.sh
 ```
 
-> 国外服务器或想走 GitHub 线路：`bash deploy.sh --github`；重复执行即为升级，`--status` 查状态、`--rollback` 回滚。
+> 两条命令只是下载脚本的入口不同，脚本内部会自动选线路并把另一条当兜底，**不需要加任何参数**。
+> 重复执行即为升级，`--status` 查状态、`--rollback` 回滚。
 
 **或者用 Docker Compose 自己起**（源码已在本机）：
 
@@ -103,31 +121,29 @@ docker compose up -d --build
 ### 一键部署（Linux 服务器）
 
 机器上有 `docker` 就能跑：脚本会拉最新源码 → 构建镜像 → 替换容器 →
-**打印管理员账号密码并实际登录验证一次**。
+**打印管理员账号密码并实际登录验证一次**。两个入口的脚本内容一致，按服务器所在网络选一个即可。
 
 ```bash
-# 国外服务器安装
+# 国外服务器安装（GitHub 入口）
 curl -fsSL https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
 bash deploy.sh
 
-# 国内服务器安装
+# 国内服务器安装（Gitee 入口）
 curl -fsSL https://raw.giteeusercontent.com/anglers/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
 bash deploy.sh
 ```
 
-**两条代码线路**（两个仓库内容同步，任选其一）：
+**脚本内部自动选线路，没有任何选线路的参数**：
 
 | 线路 | 仓库 | 适合 |
 |---|---|---|
 | 线路 1（国内） | `gitee.com/anglers/kuima-generator` | 国内服务器，速度稳定 |
 | 线路 2（国外） | `github.com/AnglerS888/kuima-generator` | 海外 / 能直连 GitHub |
 
-不指定线路时自动探测两边连通性，谁快先走谁、另一个兜底；归档下载失败会再自动
-用 `git clone` 把两条线路各试一遍。
+启动时会探测两个仓库的响应速度，谁快先走谁、另一个自动兜底；归档下载失败还会自动
+改用 `git clone` 把两条线路各试一遍。所以国内服务器会自然落到 Gitee、国外服务器自然落到 GitHub。
 
 ```bash
-bash deploy.sh --gitee            # 强制线路 1（国内 Gitee）
-bash deploy.sh --github           # 强制线路 2（国外 GitHub）
 PORT=9090 bash deploy.sh          # 换宿主机端口
 bash deploy.sh --status           # 查看状态与管理员密码
 bash deploy.sh --rollback         # 回滚到上一次成功部署的镜像

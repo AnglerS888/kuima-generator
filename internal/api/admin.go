@@ -162,7 +162,7 @@ func handleAdminSaveSettings(w http.ResponseWriter, r *http.Request) {
 		_ = set(store.SetSiteKeywords, kw)
 	}
 	if body.SiteAnnounce != nil {
-		// 公告按纯文本渲染（HTML 会被转义），这里只需要限长
+		// 公告按 HTML 原样注入（后台可写标签），这里只做长度限制
 		text := strings.TrimSpace(strings.ReplaceAll(*body.SiteAnnounce, "\r\n", "\n"))
 		if utf8.RuneCountInString(text) > maxAnnounceLen {
 			httpx.WriteErr(w, http.StatusBadRequest, fmt.Errorf("网站公告最多 %d 个字符", maxAnnounceLen))
@@ -345,7 +345,7 @@ func handleAdminSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 const maxKeywordsLen = 200 // 搜索关键词上限（字符）
 
-const maxAnnounceLen = 500 // 网站公告上限（字符）
+const maxAnnounceLen = 2000 // 网站公告上限（字符，含 HTML 标签）
 
 func boolStr(b bool) string {
 	if b {

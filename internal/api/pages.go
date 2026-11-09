@@ -78,8 +78,9 @@ func servePageMode(w http.ResponseWriter, page []byte, withAnnounce bool) {
 //   - 搜索关键词 → <meta name="keywords">（SEO，所有页面）
 //   - 网站公告   → <main> 之前的一条横幅（所有页面）
 //
-// 公告按纯文本转义，配合 CSS 的 pre-wrap 保留换行；不解析 HTML，
-// 避免管理员（或被盗的管理员会话）往页面里塞脚本。
+// 公告支持 HTML：写了标签就原样注入（<b>、<a href>、<br>、<span style> 等），
+// 纯文本则转义后靠 CSS 的 pre-wrap 保留换行。信任级别与「底部统计代码」一致 ——
+// 能进后台本来就能改整站页面。
 func decoratePage(body string, st model.Settings) string {
 	return decoratePageWithAnnounce(body, st, true)
 }
@@ -106,14 +107,36 @@ func decoratePageWithAnnounce(body string, st model.Settings, withAnnounce bool)
 	return body
 }
 
-// announceHTML 生成公告横幅（圆底图标 + 文本），不依赖任何外部资源。
-func announceHTML(text string) string {
+// announceHTML 生成公告横幅（圆底图标 + 内容），不依赖任何外部资源。
+// 内容里写了标签就原样注入（支持 HTML）；纯文本则转义后交给 pre-wrap 保留换行。
+func announceHTML(inner string) string {
+	// 写了标签就关掉 pre-wrap：否则多行排版的 HTML 会在页面上多出一堆空行。
+	cls := "announce-text"
+	body := html.EscapeString(inner)
+	if looksLikeHTML(inner) {
+		cls += " is-html"
+		body = inner
+	}
 	return `<div class="site-announce container"><div class="announce-inner">` +
 		`<span class="announce-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ` +
 		`stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
 		`<path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/>` +
 		`<path d="M14 8a5 5 0 0 1 0 8"/><path d="M17 5a9 9 0 0 1 0 14"/></svg></span>` +
-		`<div class="announce-text">` + html.EscapeString(text) + `</div></div></div>`
+		`<div class="` + cls + `">` + body + `</div></div></div>`
+}
+
+// looksLikeHTML 判断公告里有没有写标签，只用来决定要不要保留 pre-wrap 换行。
+// 不做任何过滤：公告内容由管理员维护，能和「底部统计代码」一样原样生效。
+func looksLikeHTML(s string) bool {
+	for i := 0; i+1 < len(s); i++ {
+		if s[i] != '<' {
+			continue
+		}
+		if c := s[i+1]; c == '/' || c == '!' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') {
+			return true
+		}
+	}
+	return false
 }
 
 // handleNotFound 未匹配到任何路由时：

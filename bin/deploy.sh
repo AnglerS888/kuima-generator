@@ -4,8 +4,6 @@
 #
 # 用法：
 #   ./deploy.sh                    # 自动选线路（国内 Gitee / 国外 GitHub）拉 main → 构建 → 换容器
-#   ./deploy.sh --gitee            # 强制走线路 1（国内 Gitee）
-#   ./deploy.sh --github           # 强制走线路 2（国外 GitHub）
 #   ./deploy.sh --local            # 用当前工作区代码构建（不下载，适合本机调试）
 #   ./deploy.sh --status           # 查看容器状态、管理员账号与密码
 #   ./deploy.sh --reset-admin      # 把管理员密码重置成凭据文件里的值（忘记密码时用）
@@ -14,12 +12,11 @@
 #   DATA_VOLUME=wxcode-data ./deploy.sh   # 指定数据库卷名（默认 wxcode-data）
 #   BRANCH=dev ./deploy.sh         # 换分支（默认 main；找不到自动再试 master / 同名 tag）
 #
-# 代码线路（两个仓库内容保持同步，任选一条）：
+# 代码线路（两个仓库内容保持同步，脚本内部自动判断，没有任何选线路的参数）：
 #   线路 1（国内）：https://gitee.com/anglers/kuima-generator
 #   线路 2（国外）：https://github.com/AnglerS888/kuima-generator
-#   * 默认自动：探测两边连通性，谁快先走谁，另一个兜底
-#   * 显式指定：./deploy.sh --gitee   /   ./deploy.sh --github
-#               也可 SOURCE=auto|gitee|github ./deploy.sh
+#   * 启动时探测两个域名的响应速度，谁快先走谁，另一个自动兜底
+#     （国内服务器自然走 Gitee，国外服务器自然走 GitHub）
 #   * 归档下载失败时，会自动改用 git clone 再走一遍这两条线路
 #   * 关掉 GitHub 加速：GH_MIRROR= ./deploy.sh（只走 GitHub 直连）
 #   * 换仓库：  GITEE_REPO=owner/repo / GITHUB_REPO=owner/repo ./deploy.sh
@@ -57,8 +54,6 @@ CONTAINER_PORT="${CONTAINER_PORT:-8080}"
 # 代码仓库：国内用 Gitee，国外用 GitHub（两边内容保持同步）
 GITEE_REPO="${GITEE_REPO:-anglers/kuima-generator}"          # Gitee owner/repo
 GITHUB_REPO="${GITHUB_REPO:-${REPO:-AnglerS888/kuima-generator}}"  # GitHub owner/repo（REPO 为旧名，兼容）
-# 拉哪边：auto（默认，按连通性自动选）/ gitee / github
-SOURCE="${SOURCE:-auto}"
 BRANCH="${BRANCH:-main}"
 # 版本号：显式给了就用，否则取源码里的 VERSION 文件（在线更新靠它比对），兜底时间戳
 VERSION_ENV="${VERSION:-}"
@@ -105,19 +100,10 @@ for arg in "$@"; do
         --rollback)     ROLLBACK=1 ;;
         --status)       STATUS_ONLY=1 ;;
         --reset-admin)  RESET_ADMIN=1 ;;
-        --gitee)        SOURCE=gitee ;;       # 线路 1：国内 Gitee
-        --github)       SOURCE=github ;;      # 线路 2：国外 GitHub
-        --source=*)     SOURCE="${arg#--source=}" ;;
         -h|--help)      awk 'NR>1 && /^set -euo pipefail/{exit} NR>1{sub(/^# ?/,""); print}' "$0"; exit 0 ;;
         *) echo "未知参数：$arg（--help 看用法）" >&2; exit 2 ;;
     esac
 done
-
-# --source 只接受 auto / gitee / github
-case "$SOURCE" in
-    auto|gitee|github) ;;
-    *) echo "未知的代码线路：$SOURCE（可选 auto / gitee / github）" >&2; exit 2 ;;
-esac
 
 # ---------- 颜色 ----------
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -126,8 +112,9 @@ warn() { echo -e "${YELLOW}[WARN]${NC}  $(date '+%H:%M:%S')  $1"; }
 err()  { echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S')  $1"; }
 
 # ---------- 源码下载地址 ----------
-# 两个仓库：国内 Gitee、国外 GitHub。SOURCE=auto 时先探测两边连通性，
-# 谁快先走谁，另一个作兜底；SOURCE=gitee/github 则强制先走指定那个。
+# 两个仓库：国内 Gitee、国外 GitHub，内容保持同步。
+# 脚本不带任何「选线路」参数：进来先探测两边连通性，谁快先走谁，
+# 另一个留作兜底 —— 国内服务器自然落到 Gitee，国外服务器自然落到 GitHub。
 
 # probe_ms 返回访问该地址的毫秒数（失败返回 9999，用于排序）。
 probe_ms() {
@@ -140,14 +127,11 @@ probe_ms() {
 }
 
 # source_order 输出尝试顺序，一行一个仓库名（gitee / github）。
+# 两个都探不通时仍按「Gitee → GitHub」的顺序硬试一遍，交给后面的重试和克隆兜底。
 source_order() {
-    case "$SOURCE" in
-        gitee)  printf 'gitee\ngithub\n'; return 0 ;;
-        github) printf 'github\ngitee\n'; return 0 ;;
-    esac
     local g h
-    g=$(probe_ms https://gitee.com)
-    h=$(probe_ms https://github.com)
+    g=$(probe_ms "https://gitee.com/${GITEE_REPO}" || echo 9999)
+    h=$(probe_ms "https://github.com/${GITHUB_REPO}" || echo 9999)
     if [ "$g" -le "$h" ]; then
         printf 'gitee\ngithub\n'
     else
@@ -564,8 +548,15 @@ main() {
         log "  ✓ $(basename "$SRC_DIR")"
     else
         SRC_ORDER="$(source_order)"
-        SRC_ORDER="$(source_order)"
-        log "[1/4] 获取源码（${BRANCH}），线路顺序：$(printf '%s' "$SRC_ORDER" | tr '\n' ' ')"
+        # 探测结果直接转成人话，方便排查「为什么先走了另一条」
+        SRC_LABEL=""
+        for s in $SRC_ORDER; do
+            case "$s" in
+                gitee)  SRC_LABEL="${SRC_LABEL}${SRC_LABEL:+ → }Gitee(国内)" ;;
+                github) SRC_LABEL="${SRC_LABEL}${SRC_LABEL:+ → }GitHub(国外)" ;;
+            esac
+        done
+        log "[1/4] 获取源码（${BRANCH}），自动选路：${SRC_LABEL}"
         TMP_DIR=$(mktemp -d)
         CURL_AUTH=()
         if [ -n "${GIT_TOKEN:-}" ]; then

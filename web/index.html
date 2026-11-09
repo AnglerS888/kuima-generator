@@ -81,6 +81,15 @@
   .announce-ic svg{width:.85rem;height:.85rem}
   .announce-text{min-width:0;color:var(--fg);font-size:.84rem;line-height:1.7;
     white-space:pre-wrap;word-break:break-word}
+  /* 公告支持 HTML：写了标签就不再按纯文本保留换行，并给常用标签补一点样式 */
+  .announce-text.is-html{white-space:normal}
+  .announce-text a{color:var(--brand);text-decoration:underline;text-underline-offset:2px}
+  .announce-text a:hover{text-decoration-thickness:2px}
+  .announce-text b,.announce-text strong{font-weight:700}
+  .announce-text p{margin:0 0 .35rem}
+  .announce-text p:last-child{margin-bottom:0}
+  .announce-text img{max-width:100%;height:auto;vertical-align:middle;border-radius:.4rem}
+  .announce-text code{padding:.05rem .3rem;border-radius:.3rem;background:var(--panel-2);font-size:.94em}
   @media(max-width:575.98px){
     .site-announce{padding:.55rem 15px .1rem}
     .announce-inner{padding:.5rem .6rem;gap:.5rem;border-radius:.75rem}

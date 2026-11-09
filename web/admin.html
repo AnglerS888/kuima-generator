@@ -279,10 +279,17 @@
 
         <div class="site-field span-2">
           <div class="label">网站公告</div>
-          <textarea class="input" id="setAnnounce" rows="3"
-            style="width:100%;resize:vertical;line-height:1.6"
-            placeholder="例如：本站免费使用，禁止生成违法违规内容。&#10;支持换行，留空则不显示。"></textarea>
-          <p class="hint">显示在每个页面顶部（导航栏下方），纯文本、支持换行，最多 500 字。</p>
+          <textarea class="input mono" id="setAnnounce" rows="4" spellcheck="false"
+            style="width:100%;resize:vertical;font-size:.8rem;line-height:1.6"
+            placeholder="纯文本：本站免费使用，禁止生成违法违规内容。&#10;&#10;也可以写 HTML：&#10;<b>系统维护</b>：今晚 23:00–24:00 暂停服务，<a href=&quot;/doc&quot;>查看详情</a>"></textarea>
+          <p class="hint">
+            显示在每个页面顶部（导航栏下方），最长 2000 字。支持 HTML：<code>&lt;b&gt;</code>、<code>&lt;a href="..."&gt;</code>、
+            <code>&lt;br&gt;</code>、<code>&lt;span style="color:#e5484d"&gt;</code> 都会原样生效；纯文本照样可用，换行会保留。
+          </p>
+          <div class="announce-preview" id="announcePreviewWrap" style="display:none">
+            <div class="announce-preview-label">效果预览</div>
+            <div class="announce-preview-box" id="announcePreview"></div>
+          </div>
         </div>
 
         <div class="site-field span-2">
@@ -995,6 +1002,33 @@ if (wmModeSel) wmModeSel.addEventListener('change', () => {
 const wmRefreshBtn = $('#wmPreviewRefresh');
 if (wmRefreshBtn) wmRefreshBtn.onclick = (ev) => { ev.preventDefault(); refreshWmPreview(0); };
 
+// ---------- 网站公告：HTML 实时预览 ----------
+// 公告支持 HTML，发布前先在后台按前台的样式渲染一遍，免得标签写错要上线才发现。
+function renderAnnouncePreview(){
+  const raw = $('#setAnnounce').value.trim();
+  const wrap = $('#announcePreviewWrap'), box = $('#announcePreview');
+  if (!wrap || !box) return;
+  if (!raw) { wrap.style.display = 'none'; box.innerHTML = ''; return; }
+  // 有标签就按 HTML 渲染（换行交给标签），纯文本则转义后靠 pre-wrap 保留换行
+  const isHtml = /<\/?[a-zA-Z!]/.test(raw);
+  box.innerHTML =
+    '<div class="announce-inner">' +
+      '<span class="announce-ic">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z"/>' +
+          '<path d="M14 8a5 5 0 0 1 0 8"/><path d="M17 5a9 9 0 0 1 0 14"/>' +
+        '</svg>' +
+      '</span>' +
+      '<div class="announce-text' + (isHtml ? ' is-html' : '') + '">' +
+        (isHtml ? raw : esc(raw)) +
+      '</div>' +
+    '</div>';
+  wrap.style.display = '';
+}
+
+const announceEl = $('#setAnnounce');
+if (announceEl) announceEl.addEventListener('input', renderAnnouncePreview);
+
 async function loadOverview(){
   const d = await api('/api/admin/overview');
   const s = d.stats || {}, st = d.settings || {}, lg = d.logging || {};
@@ -1040,6 +1074,7 @@ async function loadOverview(){
   $('#setKeywords').value = st.siteKeywords || '';
   $('#setAnnounce').value = st.siteAnnounce || '';
   $('#setCorsOrigins').value = st.corsOrigins || '';
+  renderAnnouncePreview();
 
   // 水印：四档全局配置 + 默认水印参数
   $('#wmMode').value = st.watermarkMode || 'none';

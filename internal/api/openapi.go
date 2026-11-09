@@ -612,7 +612,7 @@ func apiOperations() []apiOperationDoc {
 		apiBody("recordPayloadMode", "json", "string", "full / hash / none", false, "full", "full", "hash", "none"),
 		apiBody("recordRetentionDays", "json", "integer", "记录保留天数，0 永久", false, 30),
 		apiBody("siteKeywords", "json", "string", "SEO 关键词", false, ""),
-		apiBody("siteAnnounce", "json", "string", "站点公告纯文本", false, ""),
+		apiBody("siteAnnounce", "json", "string", "站点公告，支持 HTML（原样注入页面顶部横幅）", false, ""),
 		apiBody("footerHtml", "json", "string", "底部统计代码", false, ""),
 		apiBody("corsOrigins", "json", "string", "跨域来源白名单，逗号分隔", false, ""),
 		apiBody("anonLogoKb", "json", "integer", "匿名 logo 上限 KB", false, 8192),
