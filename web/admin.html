@@ -69,15 +69,10 @@
         <div class="grow"></div>
         <span class="badge" id="updateBadge">—</span>
       </div>
-      <p class="card-sub">
-        版本号来自仓库根目录的 <code>VERSION</code> 文件。服务会<b>每天自动检查一次</b>远端版本，
-        发现新版本时这里会直接提示；也可以点「检查更新」立即比对。
-        更新会优先下载发布产物，没有产物就下载源码本地编译（需要 Go），
-        过程会显示「下载 → 编译 → 替换 → 重启」的实时进度与失败原因。
-      </p>
       <div class="toolbar">
         <button class="btn btn-brand" id="btnCheckUpdate" type="button">检查更新</button>
         <button class="btn btn-ghost" id="btnDoUpdate" type="button" style="display:none">立即更新</button>
+        <button class="btn btn-ghost" id="btnForceUpdate" type="button">强制更新</button>
         <span class="hint" id="updateState" role="status" aria-live="polite">点击「检查更新」查看是否有新版本</span>
       </div>
       <div class="up-progress" id="upProgress" style="display:none">
@@ -1224,7 +1219,9 @@ async function checkUpdate(force) {
 const upProgressBox = $('#upProgress');
 const upBarEl = $('#upBar');
 const upMsgEl = $('#upMsg');
+const upForceBtn = $('#btnForceUpdate');
 let upPolling = false;
+let upBootBefore = '';   // 重启前进程的启动时间，用来判断「确实重启过」
 
 function upProgress(show, pct, msg, isErr) {
   if (!upProgressBox) return;
@@ -1240,11 +1237,14 @@ function upProgress(show, pct, msg, isErr) {
 function upBusy(on) {
   upCheckBtn.disabled = !!on;
   upDoBtn.disabled = !!on;
+  upForceBtn.disabled = !!on;
 }
 
-// waitForRestart 轮询 /api/health：版本号变了（或等于期望值）就刷新页面
+// waitForRestart 轮询 /api/health：确认服务已重启后刷新页面。
+// 强制更新时版本号可能不变，所以额外比对 /api/health 里的进程启动时间。
 async function waitForRestart(expected) {
-  const before = (updateInfo && updateInfo.current) || '';
+  const bootBefore = upBootBefore;
+  const verBefore = (updateInfo && updateInfo.current) || '';
   const deadline = Date.now() + 180000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 1000));
@@ -1253,7 +1253,10 @@ async function waitForRestart(expected) {
       if (!r.ok) continue;
       const h = await r.json();
       const v = h.version || '';
-      if (expected ? v === expected : (before && v !== before)) { location.reload(); return; }
+      const rebooted = !!(bootBefore && h.startedAt && h.startedAt !== bootBefore);
+      if (rebooted || (expected ? v === expected : (verBefore && v !== verBefore))) {
+        location.reload(); return;
+      }
     } catch (e) { /* 服务还没起来，继续等 */ }
   }
   upHint('等待超时：服务可能没有自动重启，请手动重启后刷新页面。');
@@ -1322,6 +1325,27 @@ async function pollUpdateJob(expected) {
 
 upCheckBtn.onclick = () => checkUpdate(true);
 
+// beginUpdate 启动更新任务；force=true 表示不看版本、直接拉远端覆盖
+async function beginUpdate(force) {
+  upBusy(true);
+  upProgress(true, 0, force ? '正在启动强制更新…' : '正在启动更新任务…');
+  // 记录重启前的进程启动时间：强制更新版本号可能不变，靠它判断确实换过进程
+  upBootBefore = '';
+  try {
+    const h = await (await fetch('/api/health', {cache: 'no-store'})).json();
+    upBootBefore = h.startedAt || '';
+  } catch (e) { /* 拿不到也不影响，后面还有版本号兜底 */ }
+  try {
+    await api('/api/admin/update/apply' + (force ? '?force=1' : ''), {method: 'POST'});
+  } catch (e) {
+    upProgress(true, 0, '启动更新失败：' + e.message, true);
+    upBusy(false);
+    return;
+  }
+  upHint(force ? '强制更新中…' : '更新中…');
+  pollUpdateJob(force ? '' : ((updateInfo && updateInfo.latest) || ''));
+}
+
 upDoBtn.onclick = async () => {
   if (!updateInfo || !updateInfo.hasUpdate) return;
   const ok = await layer.confirm(
@@ -1329,17 +1353,17 @@ upDoBtn.onclick = async () => {
     '更新期间页面会短暂不可用，完成后自动刷新。',
     {title: '在线更新', okText: '开始更新'});
   if (!ok) return;
-  upBusy(true);
-  upProgress(true, 0, '正在启动更新任务…');
-  try {
-    await api('/api/admin/update/apply', {method: 'POST'});
-  } catch (e) {
-    upProgress(true, 0, '启动更新失败：' + e.message, true);
-    upBusy(false);
-    return;
-  }
-  upHint('更新中…');
-  pollUpdateJob(updateInfo.latest);
+  beginUpdate(false);
+};
+
+// 强制更新：不管远端版本号是否更新，都重新拉取远端代码 / 产物覆盖当前程序
+upForceBtn.onclick = async () => {
+  const ok = await layer.confirm(
+    '强制更新会忽略版本比较，直接拉取远端最新代码并覆盖当前程序，然后重启。' +
+    '版本号没有变化时也会执行；如果你改过程序目录里的文件，这些改动会被覆盖。',
+    {title: '强制更新', okText: '强制更新'});
+  if (!ok) return;
+  beginUpdate(true);
 };
 
 $('#saveSettings').onclick = async () => {

@@ -33,6 +33,7 @@ import (
 	"sync"
 	"time"
 
+	"wxcode/internal/config"
 	"wxcode/internal/logger"
 )
 
@@ -64,6 +65,7 @@ type UpdateJob struct {
 	Strategy  string `json:"strategy,omitempty"`
 	Version   string `json:"version,omitempty"`
 	Error     string `json:"error,omitempty"`
+	Force     bool   `json:"force,omitempty"`
 	Done      bool   `json:"done"`
 	StartedAt string `json:"startedAt"`
 	UpdatedAt string `json:"updatedAt"`
@@ -118,7 +120,10 @@ func jobFail(msg string) {
 
 // StartApply 启动一次更新任务，立即返回；进度用 GetJob 轮询。
 // 同一时间只允许一个任务。
-func StartApply() (*UpdateJob, error) {
+//
+// force=true 是「强制更新」：不看远端版本号大小，直接拉远端源码/产物覆盖当前程序，
+// 版本号没变也照做（用于怀疑本地文件被改坏、或想回到远端当前代码）。
+func StartApply(force bool) (*UpdateJob, error) {
 	jobMu.Lock()
 	if job != nil && !job.Done {
 		cur := *job
@@ -126,16 +131,20 @@ func StartApply() (*UpdateJob, error) {
 		return &cur, errors.New("已有更新任务正在进行，请等待它结束")
 	}
 	now := time.Now().Format(time.RFC3339)
-	job = &UpdateJob{Stage: StageCheck, Message: "正在检查最新版本…", Percent: 1, StartedAt: now, UpdatedAt: now}
+	msg := "正在检查最新版本…"
+	if force {
+		msg = "强制更新：正在获取远端版本…"
+	}
+	job = &UpdateJob{Stage: StageCheck, Message: msg, Percent: 1, Force: force, StartedAt: now, UpdatedAt: now}
 	out := *job
 	jobMu.Unlock()
 
-	go runApply()
+	go runApply(force)
 	return &out, nil
 }
 
 // runApply 是任务主体：检查 → 下载产物（失败则编译源码）→ 替换 → 重启。
-func runApply() {
+func runApply(force bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Error("更新任务异常", "panic", fmt.Sprint(r))
@@ -155,18 +164,30 @@ func runApply() {
 	ctx, cancel := context.WithTimeout(context.Background(), updateApplyTimeout)
 	defer cancel()
 
-	jobSet(StageCheck, "正在检查最新版本…", 2)
+	startMsg := "正在检查最新版本…"
+	if force {
+		startMsg = "强制更新：正在获取远端版本…"
+	}
+	jobSet(StageCheck, startMsg, 2)
 	info := CheckUpdate(ctx, true)
-	if info.Latest == "" && info.Error != "" {
-		jobFail("检查最新版本失败：" + info.Error + "（可检查服务器能否访问 Gitee / GitHub，或配置 UPDATE_VERSION_URL）")
-		return
+	if !force {
+		if info.Latest == "" && info.Error != "" {
+			jobFail("检查最新版本失败：" + info.Error + "（可检查服务器能否访问 Gitee / GitHub，或配置 UPDATE_VERSION_URL）")
+			return
+		}
+		if !info.HasUpdate {
+			jobSet(StageDone, "已是最新版本（v"+info.Latest+"）", 100)
+			jobPatch(func(j *UpdateJob) { j.Done = true })
+			return
+		}
+	} else {
+		// 强制更新：版本没变化也继续；连版本号都拿不到（离线）时用当前版本注入编译
+		if info.Latest == "" {
+			info.Latest = config.Version
+		}
+		logger.Info("强制更新：忽略版本比较", "current", config.Version, "latest", info.Latest, "error", info.Error)
 	}
 	jobPatch(func(j *UpdateJob) { j.Version = info.Latest })
-	if !info.HasUpdate {
-		jobSet(StageDone, "已是最新版本（v"+info.Latest+"）", 100)
-		jobPatch(func(j *UpdateJob) { j.Done = true })
-		return
-	}
 
 	// 1) 先试发布产物
 	assetErr := applyFromAsset(ctx)

@@ -8,7 +8,7 @@
 
 <!-- 版本号与仓库根目录的 VERSION 文件保持一致 -->
 [![在线演示](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E6%BC%94%E7%A4%BA-wx.xbao.fun-2F6BFF?logo=googlechrome&logoColor=white)](https://wx.xbao.fun)
-[![Version](https://img.shields.io/badge/version-1.0.1-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
+[![Version](https://img.shields.io/badge/version-1.0.2-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
 [![Gitee](https://img.shields.io/badge/Gitee-anglers%2Fkuima--generator-C71D23?logo=gitee&logoColor=white)](https://gitee.com/anglers/kuima-generator)
 [![GitHub](https://img.shields.io/badge/GitHub-AnglerS888%2Fkuima--generator-181717?logo=github&logoColor=white)](https://github.com/AnglerS888/kuima-generator)
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
@@ -249,6 +249,8 @@ $env:ADMIN_PASSWORD = "换成你自己的密码"
   `下载发布产物 → 校验 → 替换程序 → 重启`；**没有发布产物时会自动改成「下载源码 → 编译」**（需要环境里有 Go）。
   失败时直接显示原因（哪一步、哪个地址、HTTP 状态），不用去翻日志。重启完成后页面轮询
   `/api/health` 读到新版本号，**自动刷新**。
+- **强制更新**：不管远端版本号是否更大，都重新拉取远端代码 / 产物覆盖当前程序（版本号不变也执行）。
+  适合「怀疑程序文件被改坏」或「想回到远端当前代码」的场景；本地改过程序目录里的文件会被覆盖。
 - **容器内更新**：镜像基于 `golang:alpine`（带 Go + git + GOPROXY 配置），没有 Releases 产物时
   也能在容器里完成「下载源码 → 编译 → 替换 → 重启」；`bin/deploy.sh` 构建的镜像同样是这个基座。
   用了精简的 `alpine` 运行镜像时，编译这条路会给出明确提示并建议重新构建镜像。

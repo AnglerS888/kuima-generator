@@ -82,7 +82,8 @@ func handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := service.StartApply()
+	force := r.URL.Query().Get("force") == "1"
+	job, err := service.StartApply(force)
 	if err != nil {
 		httpx.WriteErr(w, http.StatusConflict, err)
 		return

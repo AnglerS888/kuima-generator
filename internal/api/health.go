@@ -37,5 +37,7 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		"service": "wxcode",
 		"version": config.Version,
 		"db":      "ok",
+		// 进程启动时间：强制更新后版本号可能没变，前端用它的变化判断「确实重启过」
+		"startedAt": processStarted.UTC().Format(time.RFC3339),
 	})
 }
