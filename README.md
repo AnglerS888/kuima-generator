@@ -16,7 +16,7 @@
 ![Docker](https://img.shields.io/badge/Docker-%E6%94%AF%E6%8C%81-2496ED?logo=docker&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows%20%7C%20Linux-x64-4B5563)
 
-[在线演示](https://wx.xbao.fun) · [快速开始](#快速开始) · [功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [在线更新](#在线更新) · [常见问题](#常见问题)
+[在线演示](https://wx.xbao.fun) · [快速开始](#快速开始) · [功能](#功能) · [界面预览](#界面预览) · [部署](#部署) · [在线更新](#在线更新) · [常见问题](#常见问题) · [关于作者](#关于作者)
 
 <img src="docs/example.gif" width="420" alt="生成演示">
 
@@ -237,6 +237,8 @@ $env:ADMIN_PASSWORD = "换成你自己的密码"
 后台「概览 → 版本与更新」可以检查并一键升级：
 
 - **版本号**来自仓库根目录的 `VERSION` 文件，构建时注入二进制（Docker / 部署脚本都会自动读取）。
+- **自动检查**：服务启动约 20 秒后查一次，之后**每 24 小时**查一次；结果缓存在内存里，
+  后台「版本与更新」一打开就会显示「发现新版本」或「已是最新」，不用手动点。
 - **检查更新**：依次从 Gitee → GitHub → 加速镜像拉 `VERSION`，与当前版本比对；5 分钟内走缓存。
 - **立即更新**：下载当前平台的发布产物，替换程序后自动重启，页面会轮询 `/api/health`，
   读到新版本号后**自动刷新**。
@@ -253,7 +255,8 @@ wxcode-windows-amd64.exe  wxcode-darwin-arm64 …
 
 | 变量 | 说明 |
 |---|---|
-| `UPDATE_DISABLE=1` | 关闭在线更新（只允许走发布流程） |
+| `UPDATE_DISABLE=1` | 关闭在线更新（含每日自动检查，只允许走发布流程） |
+| `UPDATE_CHECK_INTERVAL` | 自动检查间隔，默认 `24h`（如 `6h`；小于 1 分钟按 24h 处理） |
 | `UPDATE_VERSION_URL` | 直接指定远端 VERSION 地址（自建更新源 / 内网） |
 | `UPDATE_ASSET_BASE` | 直接指定产物下载目录（如 `https://example.com/dist`） |
 | `UPDATE_GITEE_REPO` / `UPDATE_GITHUB_REPO` | 换仓库，默认 `anglers/kuima-generator` / `AnglerS888/kuima-generator` |
@@ -261,6 +264,19 @@ wxcode-windows-amd64.exe  wxcode-darwin-arm64 …
 
 > 容器内更新只对**本次容器**生效，重建容器会回到镜像版本；容器部署建议仍用 `deploy.sh` 升级。
 > 旧程序会保留为 `wxcode.exe.old`，确认新版正常后可删除。
+
+## 关于作者
+
+- **作者微信**：`KFC_good` —— 使用问题、部署求助、功能定制都可以加，备注一下「葵码」即可。
+- 如果这个项目帮到了你，欢迎请作者喝杯咖啡：
+
+<div align="center">
+
+<img src="docs/reward.jpg" width="300" alt="赞赏码">
+
+<sub>Anglers 的赞赏码</sub>
+
+</div>
 
 ## 常见问题
 

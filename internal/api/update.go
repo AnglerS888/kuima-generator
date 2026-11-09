@@ -22,6 +22,40 @@ import (
 // updateDisabled 报告是否被环境变量关掉。
 func updateDisabled() bool { return config.EnvTrue("UPDATE_DISABLE") }
 
+// updateStatus 是「版本与更新」卡片自动读取的状态。
+type updateStatus struct {
+	Current       string              `json:"current"`
+	Info          *service.UpdateInfo `json:"info"` // 最近一次检查结果；从没查过时为 null
+	AutoCheck     bool                `json:"autoCheck"`
+	LastAutoCheck string              `json:"lastAutoCheck,omitempty"`
+	NextAutoCheck string              `json:"nextAutoCheck,omitempty"`
+}
+
+// handleUpdateStatus 只读缓存，不联网。
+//
+// 后台每天会自动查一次（service.StartUpdateWatcher），这里把结果给页面，
+// 于是打开概览页就能看到「有新版本」，不需要手动点「检查更新」，也不会卡在拉远端。
+func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	if updateDisabled() {
+		httpx.WriteErr(w, http.StatusForbidden, errors.New("在线更新已被管理员关闭（UPDATE_DISABLE=1）"))
+		return
+	}
+	out := updateStatus{Current: config.Version}
+	if info, ok := service.CachedUpdate(); ok {
+		out.Info = &info
+	}
+	enabled, last, next := service.AutoCheckTiming()
+	out.AutoCheck = enabled
+	if !last.IsZero() {
+		out.LastAutoCheck = last.Format(time.RFC3339)
+	}
+	if !next.IsZero() {
+		out.NextAutoCheck = next.Format(time.RFC3339)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
 // handleUpdateCheck 检查是否有新版本。
 func handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	if updateDisabled() {

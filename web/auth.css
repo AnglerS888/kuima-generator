@@ -164,6 +164,8 @@ html[data-theme="dark"] .icon-btn svg.ic-moon{display:block}
 .badge.ok{background:rgba(15,157,88,.12);color:var(--ok-ink)}
 .badge.warn{background:rgba(192,127,0,.13);color:var(--warn-ink)}
 .badge.bad{background:rgba(217,48,37,.12);color:var(--danger-ink)}
+/* 有新版本时「版本与更新」的版本徽标反色，扫一眼就能看到 */
+.admin-page .badge.is-new{background:var(--brand-solid);color:var(--on-brand)}
 
 /* ---------- 表单 ---------- */
 .field{margin-bottom:.9rem}

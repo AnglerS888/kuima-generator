@@ -36,6 +36,9 @@ func main() {
 	janitorStop := make(chan struct{})
 	service.StartJanitor(janitorStop)
 
+	// 每天自动检查一次新版本（只更新缓存，后台页面读缓存显示提示；UPDATE_DISABLE=1 可关）
+	service.StartUpdateWatcher(janitorStop)
+
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           api.NewRouter(),

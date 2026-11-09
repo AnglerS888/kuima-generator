@@ -70,8 +70,9 @@
         <span class="badge" id="updateBadge">—</span>
       </div>
       <p class="card-sub">
-        版本号来自仓库根目录的 <code>VERSION</code> 文件。「检查更新」会读取远端版本号做比对；
-        有新版本时可一键下载并替换程序，服务重启后页面会自动刷新。
+        版本号来自仓库根目录的 <code>VERSION</code> 文件。服务会<b>每天自动检查一次</b>远端版本，
+        发现新版本时这里会直接提示；也可以点「检查更新」立即比对。
+        更新会下载产物替换程序，服务重启后页面自动刷新。
       </p>
       <div class="toolbar">
         <button class="btn btn-brand" id="btnCheckUpdate" type="button">检查更新</button>
@@ -1127,6 +1128,9 @@ async function loadOverview(){
     const h = await api('/api/health');
     $('#st-ver').textContent = 'v' + (h.version || '—');
   } catch(e){}
+
+  // 每天自动检查的结果放在缓存里，进页面直接读，免得出提示还得先点一次
+  loadUpdateStatus();
 }
 // ---------- 在线更新 ----------
 // 检查：读远端 VERSION 对比当前版本；更新：下载产物替换程序 → 自动重启 → 页面刷新。
@@ -1137,25 +1141,63 @@ let updateInfo = null;
 
 function upHint(html) { upStateEl.innerHTML = html; }
 
+function upTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('zh-CN', {hour12: false});
+}
+
+// upAutoNote 拼出「上次 / 下次自动检查」的提示后缀
+function upAutoNote(st) {
+  if (!st) return '';
+  const last = upTime(st.lastAutoCheck), next = upTime(st.nextAutoCheck);
+  if (!last && !next) return st.autoCheck === false ? ' · 自动检查未开启' : '';
+  return ' · ' + (last ? '上次自动检查 ' + last : '尚未自动检查') + (next ? '，下次 ' + next : '');
+}
+
+function renderUpdateResult(d, note) {
+  updateInfo = d;
+  if (d.current) $('#updateBadge').textContent = 'v' + d.current;
+  $('#updateBadge').classList.toggle('is-new', !!d.hasUpdate);
+  note = note || '';
+  if (d.error) {
+    upHint('检查失败：' + esc(d.error) + note);
+    upDoBtn.style.display = 'none';
+  } else if (!d.hasUpdate) {
+    upHint('已是最新版本（v' + esc(d.latest) + '）' + note);
+    upDoBtn.style.display = 'none';
+  } else {
+    upHint('<b>发现新版本 v' + esc(d.latest) + '</b>（当前 v' + esc(d.current) + '）' + note +
+      (d.inContainer ? ' · 容器内更新只对本次容器生效' : ''));
+    upDoBtn.textContent = '更新到 v' + d.latest;
+    upDoBtn.style.display = '';
+  }
+}
+
+// loadUpdateStatus 读后台「每天自动检查」的缓存结果：不联网，打开概览页就能看到提示。
+async function loadUpdateStatus() {
+  try {
+    const st = await api('/api/admin/update/status');
+    if (st.info) {
+      renderUpdateResult(st.info, upAutoNote(st));
+    } else if (st.autoCheck === false) {
+      upHint('自动检查未开启；可以点「检查更新」手动比对');
+    } else {
+      upHint('每天自动检查一次' + (st.nextAutoCheck ? '，下次检查：' + upTime(st.nextAutoCheck) : '') +
+        '；也可以立即点「检查更新」');
+    }
+  } catch (e) {
+    // 读不到状态就保持手动检查，不打扰用户
+  }
+}
+
 async function checkUpdate(force) {
   upCheckBtn.disabled = true;
   upHint('检查中…');
   try {
     const d = await api('/api/admin/update/check' + (force ? '?force=1' : ''));
-    updateInfo = d;
-    if (d.current) $('#updateBadge').textContent = 'v' + d.current;
-    if (d.error) {
-      upHint('检查失败：' + esc(d.error));
-      upDoBtn.style.display = 'none';
-    } else if (!d.hasUpdate) {
-      upHint('已是最新版本（v' + esc(d.latest) + '）');
-      upDoBtn.style.display = 'none';
-    } else {
-      upHint('发现新版本 <b>v' + esc(d.latest) + '</b>，当前 v' + esc(d.current) +
-        (d.inContainer ? '（容器内更新只对本次容器生效）' : ''));
-      upDoBtn.textContent = '更新到 v' + d.latest;
-      upDoBtn.style.display = '';
-    }
+    renderUpdateResult(d, '');
   } catch (e) {
     upHint('检查失败：' + esc(e.message));
   } finally {

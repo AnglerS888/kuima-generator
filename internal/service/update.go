@@ -32,6 +32,11 @@ const (
 	updateMinSize    = 1 << 20 // 产物至少 1MB，挡住错误页/空文件
 	updateMaxSize    = 200 << 20
 	updateMaxVersion = 64
+
+	// 自动检查：启动后先等一会儿（避开启动时的其它初始化），之后每 24 小时一次。
+	// 想让检查更频繁/更稀疏可用 UPDATE_CHECK_INTERVAL=6h 覆盖。
+	updateStartupDelay = 20 * time.Second
+	updateInterval     = 24 * time.Hour
 )
 
 // UpdateInfo 是「检查更新」的结果。
@@ -59,6 +64,11 @@ var (
 	updateMu    sync.Mutex
 	updateCache *UpdateInfo
 	updateAt    time.Time
+
+	// 后台自动检查的开关与时间点，供后台页面展示「上次 / 下次检查」
+	autoEnabled bool
+	autoLast    time.Time
+	autoNext    time.Time
 
 	// shutdownFn 由 main 注入：重启前先释放端口（Windows 必须先停监听才能起新进程）。
 	shutdownFn func(context.Context) error
@@ -130,6 +140,95 @@ func CheckUpdate(ctx context.Context, force bool) UpdateInfo {
 	}
 	updateCache, updateAt = &info, time.Now()
 	return info
+}
+
+// StartUpdateWatcher 启动「每天自动检查一次新版本」的后台任务。
+//
+// 检查结果落进和「检查更新」同一个缓存里，后台页面只读缓存（GET /api/admin/update/status），
+// 所以打开概览页不会因为拉远端 VERSION 而卡住；发现新版本时页面会直接亮出提示。
+// stop 被关闭时退出（main 里与清理任务共用同一个信号）。
+//
+// 以下情况不启动：
+//   - UPDATE_DISABLE=1：整个在线更新被关掉；
+//   - 当前版本是 dev / 空：本地开发的构建不该天天提示「有新版本」。
+func StartUpdateWatcher(stop <-chan struct{}) {
+	if config.EnvTrue("UPDATE_DISABLE") {
+		logger.Info("自动检查更新已关闭（UPDATE_DISABLE=1）")
+		return
+	}
+	if v := strings.TrimSpace(config.Version); v == "" || strings.EqualFold(v, "dev") {
+		logger.Info("跳过自动检查更新：当前是开发版本", "version", config.Version)
+		return
+	}
+
+	interval := updateInterval
+	if s := strings.TrimSpace(os.Getenv("UPDATE_CHECK_INTERVAL")); s != "" {
+		if d, err := time.ParseDuration(s); err == nil && d >= time.Minute {
+			interval = d
+		} else {
+			logger.Warn("UPDATE_CHECK_INTERVAL 不合法，按 24h 处理", "value", s)
+		}
+	}
+
+	updateMu.Lock()
+	autoEnabled = true
+	autoNext = time.Now().Add(updateStartupDelay)
+	updateMu.Unlock()
+
+	logger.Info("已开启自动检查更新",
+		"interval", interval.String(),
+		"first_run_in", updateStartupDelay.String(),
+		"current", config.Version,
+	)
+
+	go func() {
+		timer := time.NewTimer(updateStartupDelay)
+		defer timer.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-timer.C:
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			info := CheckUpdate(ctx, true)
+			cancel()
+
+			now := time.Now()
+			updateMu.Lock()
+			autoLast, autoNext = now, now.Add(interval)
+			updateMu.Unlock()
+
+			switch {
+			case info.Error != "":
+				logger.Warn("自动检查更新失败", "error", info.Error)
+			case info.HasUpdate:
+				logger.Info("发现新版本，可在后台「版本与更新」升级",
+					"current", info.Current, "latest", info.Latest, "source", info.Source)
+			default:
+				logger.Info("已是最新版本", "version", info.Current)
+			}
+			timer.Reset(interval)
+		}
+	}()
+}
+
+// CachedUpdate 返回最近一次检查结果，不触发任何网络请求。
+func CachedUpdate() (UpdateInfo, bool) {
+	updateMu.Lock()
+	defer updateMu.Unlock()
+	if updateCache == nil {
+		return UpdateInfo{}, false
+	}
+	return *updateCache, true
+}
+
+// AutoCheckTiming 返回自动检查是否开启、上次与下次检查时间（未查过时 last 为零值）。
+func AutoCheckTiming() (enabled bool, last, next time.Time) {
+	updateMu.Lock()
+	defer updateMu.Unlock()
+	return autoEnabled, autoLast, autoNext
 }
 
 // fetchLatestVersion 依次尝试 Gitee → GitHub → 镜像，返回第一个能读到的版本号。
