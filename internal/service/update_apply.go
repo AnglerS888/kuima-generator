@@ -318,64 +318,102 @@ func finishUpdate(exe, newPath string, base int) error {
 
 // downloadSource 依次尝试源码归档地址，成功即停。
 func downloadSource(ctx context.Context, dest string) error {
-	var lastErr error
+	var errs []string
 	for _, u := range sourceURLs() {
 		jobSet(StageDownload, "下载最新源码："+hostOf(u), 10)
-		if err := downloadFile(ctx, u, dest, 10, 30); err == nil {
-			return nil
-		} else {
-			lastErr = err
-			_ = os.Remove(dest)
+		ct, err := fetchToFile(ctx, u, dest, 10, 30)
+		if err == nil {
+			// 校验必须紧跟下载：某些地址会返回 200 的网页（登录/风控页），
+			// 不在这里发现的话，要等解压时才报 "gzip: invalid header"，也错过了换下一个源。
+			err = validateArchive(dest, ct)
 		}
+		if err == nil {
+			return nil
+		}
+		errs = append(errs, hostOf(u)+"："+err.Error())
+		_ = os.Remove(dest)
 	}
-	if lastErr == nil {
-		lastErr = errors.New("没有可用的源码地址")
+	if len(errs) == 0 {
+		return errors.New("没有可用的源码地址")
 	}
-	return lastErr
+	return fmt.Errorf("所有源码地址都不可用（%s）", strings.Join(errs, "；"))
 }
 
-// downloadFile 带进度地把 url 下载到 dest。
+// validateArchive 确认下载到的确实是 gzip 包（.tar.gz）。
+// 重点是把「拿到了网页」这种情况说清楚：常见于仓库私有、需要登录，或触发了人机校验。
+func validateArchive(p, ctype string) error {
+	f, err := os.Open(p)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	head = head[:n]
+	if len(head) >= 2 && head[0] == 0x1f && head[1] == 0x8b {
+		return nil
+	}
+	low := strings.ToLower(string(head))
+	hint := ""
+	if strings.Contains(low, "<html") || strings.Contains(low, "<!doctype") || strings.Contains(low, "<script") {
+		hint = "，返回的是网页（可能是仓库不可访问、需要登录，或被风控/人机校验拦了）"
+	}
+	ct := ""
+	if ctype != "" {
+		ct = "，Content-Type: " + ctype
+	}
+	return fmt.Errorf("下载到的不是 gzip 源码包%s%s", hint, ct)
+}
+
+// downloadFile 带进度地把 url 下载到 dest（不关心 Content-Type）。
+func downloadFile(ctx context.Context, url, dest string, from, to int) error {
+	_, err := fetchToFile(ctx, url, dest, from, to)
+	return err
+}
+
+// fetchToFile 带进度下载并返回 Content-Type。
 //
 // 用独立的 client：检查版本用的 client 有 8 秒总超时，下载几十 MB 产物会被它误杀。
-func downloadFile(ctx context.Context, url, dest string, from, to int) error {
+func fetchToFile(ctx context.Context, url, dest string, from, to int) (string, error) {
 	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	resp, err := updateDownloadClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("连接 %s 失败：%w", hostOf(url), err)
+		return "", fmt.Errorf("连接 %s 失败：%w", hostOf(url), err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("%s 上没有这个文件（404）", hostOf(url))
+			return "", fmt.Errorf("%s 上没有这个文件（404）", hostOf(url))
 		}
-		return fmt.Errorf("%s 返回 HTTP %d", hostOf(url), resp.StatusCode)
+		return "", fmt.Errorf("%s 返回 HTTP %d", hostOf(url), resp.StatusCode)
 	}
+	ctype := resp.Header.Get("Content-Type")
 
 	f, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
-		return fmt.Errorf("写入临时文件失败：%w", err)
+		return "", fmt.Errorf("写入临时文件失败：%w", err)
 	}
 	pw := &progressWriter{total: resp.ContentLength, from: from, to: to}
 	n, copyErr := io.Copy(f, io.TeeReader(io.LimitReader(resp.Body, updateMaxDownload), pw))
 	closeErr := f.Close()
 	if copyErr != nil {
 		_ = os.Remove(dest)
-		return fmt.Errorf("下载中断：%w", copyErr)
+		return "", fmt.Errorf("下载中断：%w", copyErr)
 	}
 	if closeErr != nil {
 		_ = os.Remove(dest)
-		return closeErr
+		return "", closeErr
 	}
 	if n == 0 {
 		_ = os.Remove(dest)
-		return errors.New("下载到 0 字节")
+		return "", errors.New("下载到 0 字节")
 	}
-	return nil
+	return ctype, nil
 }
 
 // progressWriter 把已下载字节换算成百分比写进任务状态（节流 250ms）。
@@ -415,9 +453,11 @@ func sourceURLs() []string {
 	branch := updateBranch()
 	gitee := "https://gitee.com/" + updateGiteeRepo() + "/repository/archive/" + branch + ".tar.gz"
 	gh := "https://github.com/" + updateGithubRepo() + "/archive/refs/heads/" + branch + ".tar.gz"
-	urls := []string{gitee, gh}
+	codeload := "https://codeload.github.com/" + updateGithubRepo() + "/tar.gz/refs/heads/" + branch
+	urls := []string{gitee, gh, codeload}
 	if m := updateMirror(); m != "" {
-		urls = append(urls, strings.TrimRight(m, "/")+"/"+gh)
+		prefix := strings.TrimRight(m, "/") + "/"
+		urls = append(urls, prefix+gh, prefix+codeload)
 	}
 	return urls
 }
