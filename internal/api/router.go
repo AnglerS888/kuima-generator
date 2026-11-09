@@ -79,6 +79,9 @@ func NewRouter() http.Handler {
 	// 管理端：非管理员一律 404（连存在性都不暴露）
 	admin := func(h http.HandlerFunc) http.HandlerFunc { return withAuth(requireAdmin(h)) }
 	mux.HandleFunc("GET /api/admin/overview", admin(handleAdminOverview))
+	// 在线更新：检查远端 VERSION / 下载产物替换自身并重启（UPDATE_DISABLE=1 可关闭）
+	mux.HandleFunc("GET /api/admin/update/check", admin(handleUpdateCheck))
+	mux.HandleFunc("POST /api/admin/update/apply", middleware.ProtectAPI(admin(handleUpdateApply)))
 	mux.HandleFunc("GET /api/admin/settings", admin(handleAdminGetSettings))
 	mux.HandleFunc("PUT /api/admin/settings", admin(handleAdminSaveSettings))
 	// 全站数据备份：导出 zip（VACUUM INTO 一致性快照）/ 导入 zip（校验后整体覆盖当前库）

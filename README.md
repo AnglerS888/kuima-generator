@@ -61,7 +61,7 @@
 
 ## 部署
 
-三种方式任选其一。启动后访问 `http://localhost:8080/`，管理后台在 `/admin`。
+四种方式任选其一。启动后访问 `http://localhost:8080/`，管理后台在 `/admin`。
 
 首次启动会创建管理员账号：给了 `ADMIN_PASSWORD` 就用它，没给会**随机生成并打印在启动日志**里。
 忘记密码时，带 `ADMIN_RESET_PASSWORD=1` 和一个新的 `ADMIN_PASSWORD` 重启一次即可改回。
@@ -76,6 +76,36 @@
 | `ADMIN_USER` / `ADMIN_PASSWORD` | 首次启动创建的管理员账号 / 密码 |
 | `ADMIN_RESET_PASSWORD=1` | 重置已有管理员的密码为 `ADMIN_PASSWORD` |
 | `LOG_LEVEL` / `LOG_FORMAT` | 日志级别 `debug/info/warn/error`、格式 `text/json` |
+
+### 一键部署（Linux 服务器）
+
+机器上有 `docker` 就能跑：脚本会从 GitHub 拉最新源码 → 构建镜像 → 替换容器 →
+**打印管理员账号密码并实际登录验证一次**。
+
+```bash
+# 国内加速下载脚本
+curl -fsSL https://gh-proxy.org/https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+# 直连（网络通畅时）：curl -fsSL https://github.com/AnglerS888/kuima-generator/raw/main/bin/deploy.sh -o deploy.sh
+bash deploy.sh
+```
+
+```bash
+PORT=9090 bash deploy.sh          # 换宿主机端口
+bash deploy.sh --status           # 查看状态与管理员密码
+bash deploy.sh --rollback         # 回滚到上一次成功部署的镜像
+bash deploy.sh --local            # 用当前目录的源码构建（不下载）
+```
+
+脚本默认通过国内加速镜像 `https://gh-proxy.org/` 拉源码，失败会自动回退直连 GitHub；
+想强制直连用 `GH_MIRROR= bash deploy.sh`，也可以用 `CODE_URL=` 指定任意源码归档地址。
+
+国内克隆源码：
+
+```bash
+git clone https://gh-proxy.org/https://github.com/AnglerS888/kuima-generator.git
+# 网络通畅时也可以直连
+git clone https://github.com/AnglerS888/kuima-generator.git
+```
 
 ### Docker（推荐）
 
@@ -100,8 +130,8 @@ docker compose logs -f wxcode     # 没设密码时，这里能看到随机生�
 ### Linux
 
 ```bash
-# 1) 编译（需要 Go 1.22+，产物不依赖 libc）
-CGO_ENABLED=0 go build -o wxcode ./cmd/wxcode
+# 1) 编译（需要 Go 1.22+，产物不依赖 libc；版本号取自 VERSION 文件）
+CGO_ENABLED=0 go build -ldflags "-X wxcode/internal/config.Version=$(cat VERSION)" -o wxcode ./cmd/wxcode
 
 # 2) 启动
 PORT=8080 DATA_DIR=/opt/wxcode/data \
@@ -135,8 +165,8 @@ systemctl daemon-reload && systemctl enable --now wxcode
 ### Windows
 
 ```powershell
-# 1) 编译
-go build -o wxcode.exe ./cmd/wxcode
+# 1) 编译（版本号取自 VERSION 文件）
+go build -ldflags "-X wxcode/internal/config.Version=$(cat VERSION)" -o wxcode.exe ./cmd/wxcode
 
 # 2) 启动（当前窗口生效）
 $env:PORT = "8080"
@@ -148,6 +178,35 @@ $env:ADMIN_PASSWORD = "换成你自己的密码"
 
 也可以直接双击 `wxcode.exe`：默认监听 8080，数据放在程序同级的 `data` 目录，
 管理员密码会打印在窗口里。想让配置长期生效，把上面的变量加到「系统属性 → 环境变量」即可。
+
+## 在线更新
+
+后台「概览 → 版本与更新」可以检查并一键升级：
+
+- **版本号**来自仓库根目录的 `VERSION` 文件，构建时注入二进制（Docker / 部署脚本都会自动读取）。
+- **检查更新**：依次从 Gitee → GitHub → 加速镜像拉 `VERSION`，与当前版本比对；5 分钟内走缓存。
+- **立即更新**：下载当前平台的发布产物，替换程序后自动重启，页面会轮询 `/api/health`，
+  读到新版本号后**自动刷新**。
+
+发布产物按平台命名，上传到 Releases 的 latest 即可：
+
+```
+wxcode-linux-amd64        wxcode-linux-arm64
+wxcode-windows-amd64.exe  wxcode-darwin-arm64 …
+```
+
+相关环境变量：
+
+| 变量 | 说明 |
+|---|---|
+| `UPDATE_DISABLE=1` | 关闭在线更新（只允许走发布流程） |
+| `UPDATE_VERSION_URL` | 直接指定远端 VERSION 地址（自建更新源 / 内网） |
+| `UPDATE_ASSET_BASE` | 直接指定产物下载目录（如 `https://example.com/dist`） |
+| `UPDATE_GITEE_REPO` / `UPDATE_GITHUB_REPO` | 换仓库，默认 `anglers/kuima-generator` / `AnglerS888/kuima-generator` |
+| `UPDATE_BRANCH` / `UPDATE_MIRROR` | 分支（默认 `main`）/ GitHub 加速前缀 |
+
+> 容器内更新只对**本次容器**生效，重建容器会回到镜像版本；容器部署建议仍用 `deploy.sh` 升级。
+> 旧程序会保留为 `wxcode.exe.old`，确认新版正常后可删除。
 
 ## 常见问题
 

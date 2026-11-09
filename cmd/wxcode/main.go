@@ -50,6 +50,9 @@ func main() {
 	// 收到 SIGINT / SIGTERM（docker stop）时优雅退出，给在途请求留时间
 	go watchSignals(srv, janitorStop)
 
+	// 在线更新要用：重启前先释放监听端口（Windows 上必须先停监听，新进程才抢得到端口）
+	service.SetShutdownFunc(func(ctx context.Context) error { return srv.Shutdown(ctx) })
+
 	printBanner(addr)
 	logger.Info("服务已启动",
 		"version", config.Version,

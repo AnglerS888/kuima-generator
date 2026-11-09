@@ -5,7 +5,8 @@ services:
     build:
       context: .
       args:
-        VERSION: "1.0.0"
+        # 留空 = 用仓库根目录 VERSION 文件里的版本号（在线更新靠它比对）
+        VERSION: "${VERSION:-}"
         # 构建时间自动注入，启动日志里能看到镜像构建于何时
         BUILD_TIME: "${BUILD_TIME:-unknown}"
     image: wxcode:1.0.0

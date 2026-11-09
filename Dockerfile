@@ -13,8 +13,9 @@ FROM ${GO_IMAGE} AS builder
 
 WORKDIR /app
 
-# 版本号可通过 --build-arg VERSION=1.0.1 注入
-ARG VERSION=dev
+# 版本号：优先 --build-arg VERSION=1.0.1，否则读仓库根目录的 VERSION 文件
+# （在线更新就是拿这个值和远端 VERSION 比对，两边必须一致）
+ARG VERSION=
 # 构建时间：自动取当前 UTC 时间，也可手动 --build-arg BUILD_TIME=... 覆盖
 ARG BUILD_TIME=unknown
 
@@ -24,6 +25,7 @@ ARG GOPROXY=https://goproxy.cn,direct
 ENV GOPROXY=${GOPROXY}
 
 COPY go.mod go.sum ./
+COPY VERSION ./
 RUN go mod download
 
 # ⚠ go:embed 的文件必须在编译阶段就位，否则报
@@ -35,8 +37,9 @@ COPY web/ ./web/
 
 # CGO_ENABLED=0 静态编译：产物不依赖 libc，换基础镜像也能跑
 # 版本号 / 构建时间注入到 internal/config 包（启动日志里能看到镜像构建于何时）
-RUN CGO_ENABLED=0 go build -trimpath \
-    -ldflags="-s -w -X wxcode/internal/config.Version=${VERSION} -X wxcode/internal/config.BuildTime=${BUILD_TIME}" \
+RUN V="${VERSION:-$(cat VERSION 2>/dev/null || echo dev)}" && \
+    CGO_ENABLED=0 go build -trimpath \
+    -ldflags="-s -w -X wxcode/internal/config.Version=${V} -X wxcode/internal/config.BuildTime=${BUILD_TIME}" \
     -o wxcode ./cmd/wxcode
 
 # ============================================================

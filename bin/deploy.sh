@@ -1,16 +1,26 @@
 #!/bin/bash
 # ============================================================
-# 葵花码服务（wxcode）— 一键部署脚本
+# 葵码生成器 — 一键部署脚本
 #
 # 用法：
-#   ./deploy.sh                    # 拉仓库最新 main 分支 → 构建 → 换容器
+#   ./deploy.sh                    # 自动选源（国内 Gitee / 国外 GitHub）拉 main → 构建 → 换容器
 #   ./deploy.sh --local            # 用当前工作区代码构建（不下载，适合本机调试）
 #   ./deploy.sh --status           # 查看容器状态、管理员账号与密码
 #   ./deploy.sh --reset-admin      # 把管理员密码重置成凭据文件里的值（忘记密码时用）
 #   ./deploy.sh --rollback         # 回滚到上一次成功部署的镜像
 #   PORT=9090 ./deploy.sh          # 换宿主机端口（容器内固定 8080）
 #   DATA_VOLUME=wxcode-data ./deploy.sh   # 指定数据库卷名（默认 wxcode-data）
-#   BRANCH=dev ./deploy.sh         # 换分支
+#   BRANCH=dev ./deploy.sh         # 换分支（默认 main；找不到自动再试 master / 同名 tag）
+#
+# 源码来源（两个仓库内容保持同步）：
+#   * 国内 Gitee：https://gitee.com/anglers/kuima-generator
+#   * 国外 GitHub：https://github.com/AnglerS888/kuima-generator
+#   * 默认 SOURCE=auto：探测两边连通性，谁快先走谁，另一个自动兜底；
+#     也可强制：SOURCE=gitee ./deploy.sh / SOURCE=github ./deploy.sh
+#   * 关掉 GitHub 加速：GH_MIRROR= ./deploy.sh（只走 GitHub 直连）
+#   * 换仓库：  GITEE_REPO=owner/repo / GITHUB_REPO=owner/repo ./deploy.sh
+#   * 换来源：  CODE_URL=https://example.com/src.tar.gz ./deploy.sh（自建 Git / 内网镜像）
+#   * 改用克隆：GIT_URL=https://gitee.com/anglers/kuima-generator.git ./deploy.sh
 #
 # 管理员账号：
 #   * 默认用户名 admin，密码首次部署时随机生成（16 位十六进制），
@@ -18,8 +28,9 @@
 #   * 想自己指定：ADMIN_USER=root ADMIN_PASSWORD=你的密码 ./deploy.sh
 #   * 重新部署会复用同一个密码，不会变；改了密码后想同步显示，用 --reset-admin。
 #
-# 私有仓库需要凭据时：
-#   GIT_USER=你的账号 GIT_TOKEN=你的token ./deploy.sh
+# 私有仓库需要凭据时（GitHub 用 Personal Access Token，勾 repo 读权限即可）：
+#   GIT_TOKEN=ghp_xxx ./deploy.sh
+#   需要用户名时：GIT_USER=你的账号 GIT_TOKEN=xxx ./deploy.sh
 #
 # 基础镜像拉不下来时（国内常见：镜像站缺 manifest，报 load metadata ... not found）：
 #   BASE_REGISTRY=docker.m.daocloud.io ./deploy.sh
@@ -39,9 +50,23 @@ IMAGE_NAME="${IMAGE_NAME:-wxcode}"
 CONTAINER_NAME="${CONTAINER_NAME:-wxcode}"
 HOST_PORT="${HOST_PORT:-${PORT:-8080}}"   # 宿主机端口（PORT 也可，和 README 里一致）
 CONTAINER_PORT="${CONTAINER_PORT:-8080}"
+# 代码仓库：国内用 Gitee，国外用 GitHub（两边内容保持同步）
+GITEE_REPO="${GITEE_REPO:-anglers/kuima-generator}"          # Gitee owner/repo
+GITHUB_REPO="${GITHUB_REPO:-${REPO:-AnglerS888/kuima-generator}}"  # GitHub owner/repo（REPO 为旧名，兼容）
+# 拉哪边：auto（默认，按连通性自动选）/ gitee / github
+SOURCE="${SOURCE:-auto}"
 BRANCH="${BRANCH:-main}"
-VERSION="${VERSION:-$(date +%Y%m%d-%H%M)}"
-CODE_URL="${CODE_URL:-http://git.danran0.cc/danran/wxcode/archive/${BRANCH}.tar.gz}"
+# 版本号：显式给了就用，否则取源码里的 VERSION 文件（在线更新靠它比对），兜底时间戳
+VERSION_ENV="${VERSION:-}"
+VERSION=""
+# CODE_URL 非空时直接用它下载，不再走上面的候选地址（自建 Git / 内网镜像用）
+CODE_URL="${CODE_URL:-}"
+# GitHub 下载加速前缀：默认 gh-proxy.org（国内直连 GitHub 经常超时/502）。
+# 置空（GH_MIRROR=）则只走直连；换别的镜像前缀同理，如 https://ghfast.top/
+GH_MIRROR="${GH_MIRROR:-https://gh-proxy.org/}"
+# 非空时改用 git clone（需要 git），例如：
+#   GIT_URL=https://gitee.com/anglers/kuima-generator.git
+GIT_URL="${GIT_URL:-}"
 HEALTH_PATH="${HEALTH_PATH:-/api/health}"
 DATA_VOLUME="${DATA_VOLUME:-wxcode-data}"   # SQLite 数据卷，删容器不丢数据
 GOPROXY_ARG="${GOPROXY:-https://goproxy.cn,direct}"  # 构建时拉依赖走的代理
@@ -86,6 +111,92 @@ GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC
 log()  { echo -e "${GREEN}[INFO]${NC}  $(date '+%H:%M:%S')  $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC}  $(date '+%H:%M:%S')  $1"; }
 err()  { echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S')  $1"; }
+
+# ---------- 源码下载地址 ----------
+# 两个仓库：国内 Gitee、国外 GitHub。SOURCE=auto 时先探测两边连通性，
+# 谁快先走谁，另一个作兜底；SOURCE=gitee/github 则强制先走指定那个。
+
+# probe_ms 返回访问该地址的毫秒数（失败返回 9999，用于排序）。
+probe_ms() {
+    local t
+    if ! t=$(curl -o /dev/null -sS --max-time 3 -w '%{time_total}' "$1" 2>/dev/null); then
+        printf '9999\n'
+        return 0
+    fi
+    awk -v t="$t" 'BEGIN{printf "%d\n", t * 1000}'
+}
+
+# source_order 输出尝试顺序，一行一个仓库名（gitee / github）。
+source_order() {
+    case "$SOURCE" in
+        gitee)  printf 'gitee\ngithub\n'; return 0 ;;
+        github) printf 'github\ngitee\n'; return 0 ;;
+    esac
+    local g h
+    g=$(probe_ms https://gitee.com)
+    h=$(probe_ms https://github.com)
+    if [ "$g" -le "$h" ]; then
+        printf 'gitee\ngithub\n'
+    else
+        printf 'github\ngitee\n'
+    fi
+}
+
+# refs_to_try 输出去重后的分支候选：指定分支 → main → master。
+refs_to_try() {
+    local tried="" b
+    for b in "$BRANCH" main master; do
+        case " $tried " in *" $b "*) continue ;; esac
+        tried="$tried $b"
+        printf '%s\n' "$b"
+    done
+}
+
+# archive_candidates 输出某个仓库下的候选归档地址。
+#   Gitee：  /repository/archive/<ref>.tar.gz（分支和 tag 同一个形式）
+#   GitHub：/archive/refs/heads/<ref>.tar.gz（再补一个 refs/tags/<ref>），可套 GH_MIRROR
+archive_candidates() {   # $1 = gitee | github
+    local src="$1" ref url
+    while IFS= read -r ref; do
+        [ -n "$ref" ] || continue
+        if [ "$src" = "gitee" ]; then
+            printf 'https://gitee.com/%s/repository/archive/%s.tar.gz\n' "$GITEE_REPO" "$ref"
+            continue
+        fi
+        url="https://github.com/${GITHUB_REPO}/archive/refs/heads/${ref}.tar.gz"
+        if [ -n "$GH_MIRROR" ]; then
+            printf '%s%s\n' "${GH_MIRROR%/}/" "$url"
+        fi
+        printf '%s\n' "$url"
+    done <<EOF
+$(refs_to_try)
+EOF
+    # 同名 tag（有人用标签发布而不是分支）
+    if [ "$src" = "github" ]; then
+        url="https://github.com/${GITHUB_REPO}/archive/refs/tags/${BRANCH}.tar.gz"
+        if [ -n "$GH_MIRROR" ]; then
+            printf '%s%s\n' "${GH_MIRROR%/}/" "$url"
+        fi
+        printf '%s\n' "$url"
+    fi
+}
+
+# candidate_urls 按「来源优先级 → 分支 → 直连/镜像」列出所有要尝试的地址。
+# SRC_ORDER 已算过时直接复用，避免重复探测拖慢启动。
+candidate_urls() {
+    if [ -n "$CODE_URL" ]; then
+        printf '%s\n' "$CODE_URL"
+        return 0
+    fi
+    local src order
+    order="${SRC_ORDER:-$(source_order)}"
+    while IFS= read -r src; do
+        [ -n "$src" ] || continue
+        archive_candidates "$src"
+    done <<EOF
+$order
+EOF
+}
 
 # ---------- 环境检查 ----------
 check_env() {
@@ -244,7 +355,7 @@ print_done() {
 do_status() {
     check_env
     echo ""
-    echo -e "${GREEN}================ wxcode 运行状态 ================${NC}"
+    echo -e "${GREEN}=============== 葵码生成器 运行状态 ===============${NC}"
     if ! container_exists; then
         warn "容器 ${CONTAINER_NAME} 不存在（还没部署过？）"
         load_admin_credentials
@@ -398,7 +509,7 @@ main() {
 
     echo ""
     echo -e "${GREEN}============================================${NC}"
-    echo -e "${GREEN}  葵花码服务 wxcode — 部署脚本${NC}"
+    echo -e "${GREEN}  葵码生成器 — 一键部署${NC}"
     echo -e "${GREEN}============================================${NC}"
     echo ""
 
@@ -426,21 +537,55 @@ main() {
         SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
         [ -f "$SRC_DIR/Dockerfile" ] || SRC_DIR="$(cd "$SRC_DIR/.." && pwd)"
         log "[1/4] 使用本地源码：$SRC_DIR"
+    elif [ -n "$GIT_URL" ]; then
+        command -v git >/dev/null 2>&1 || { err "指定了 GIT_URL，但环境里没有 git"; exit 1; }
+        log "[1/4] git clone（${BRANCH}）：${GIT_URL}"
+        TMP_DIR=$(mktemp -d)
+        if ! git clone --depth 1 --branch "$BRANCH" "$GIT_URL" "$TMP_DIR/src" 2>&1 | sed 's/^/    /'; then
+            err "克隆失败：${GIT_URL}"
+            err "  * 分支 ${BRANCH} 是否存在？可换 BRANCH=... 或直接去掉该变量用仓库默认分支"
+            err "  * 私有仓库请用带凭据的地址，或改用 GIT_TOKEN + 归档下载"
+            exit 1
+        fi
+        SRC_DIR="$TMP_DIR/src"
+        log "  ✓ $(basename "$SRC_DIR")"
     else
-        log "[1/4] 下载源码（${BRANCH} 分支）..."
+        SRC_ORDER="$(source_order)"
+        log "[1/4] 下载源码（${BRANCH}），来源顺序：$(printf '%s' "$SRC_ORDER" | tr '\n' ' ')"
         TMP_DIR=$(mktemp -d)
         CURL_AUTH=()
         if [ -n "${GIT_TOKEN:-}" ]; then
-            CURL_AUTH=(-u "${GIT_USER:-git}:${GIT_TOKEN}")
+            # GitHub / Gitea 都是 basic auth：token 当密码，用户名随便填
+            CURL_AUTH=(-u "${GIT_USER:-x-access-token}:${GIT_TOKEN}")
         fi
-        if ! curl -fsSL --connect-timeout 30 --max-time 300 "${CURL_AUTH[@]}" \
-                "$CODE_URL" -o "$TMP_DIR/source.tar.gz"; then
-            err "下载失败：$CODE_URL"
-            err "私有仓库请带凭据：GIT_USER=xxx GIT_TOKEN=yyy $0"
+
+        SRC_URL=""
+        while IFS= read -r url; do
+            [ -n "$url" ] || continue
+            log "  尝试：$url"
+            if curl -fsSL --connect-timeout 20 --max-time 300 "${CURL_AUTH[@]}" \
+                    "$url" -o "$TMP_DIR/source.tar.gz"; then
+                SRC_URL="$url"
+                break
+            fi
+            warn "  不可用，换下一个地址"
+        done <<EOF
+$(candidate_urls)
+EOF
+
+        if [ -z "$SRC_URL" ]; then
+            err "源码下载失败：候选地址都不可用"
+            err "  * 仓库：Gitee ${GITEE_REPO} / GitHub ${GITHUB_REPO}（分支 ${BRANCH}）"
+            err "  * 私有仓库要带 token：GIT_TOKEN=ghp_xxx $0"
+            err "  * 换克隆方式：GIT_URL=https://gitee.com/${GITEE_REPO}.git $0"
+            err "  * 或改用本地代码构建：$0 --local"
             exit 1
         fi
+        log "  ✓ 来源：${SRC_URL}"
         log "[2/4] 解压..."
-        tar -xzf "$TMP_DIR/source.tar.gz" -C "$TMP_DIR"
+        # 先 cd 再解压（而不是 tar -C 绝对路径）：Git Bash 会把 /tmp/xxx 转成 C:/...
+        # 传给 tar 时被当成「远程主机:文件」，Windows 上会直接报错。
+        ( cd "$TMP_DIR" && tar -xzf source.tar.gz )
         # 用 -print -quit 取第一个目录：不能写 `find ... | head -1`，
         # head 提前关闭管道会让 find 收到 SIGPIPE，在 set -o pipefail 下直接判失败
         SRC_DIR=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -print -quit)
@@ -448,6 +593,17 @@ main() {
         log "  ✓ $(basename "$SRC_DIR")"
     fi
     [ -f "$SRC_DIR/Dockerfile" ] || { err "源码目录里没有 Dockerfile：$SRC_DIR"; exit 1; }
+
+    # 版本号：优先环境变量，其次源码 VERSION 文件，最后时间戳
+    if [ -z "$VERSION" ]; then
+        if [ -n "$VERSION_ENV" ]; then
+            VERSION="$VERSION_ENV"
+        elif [ -f "$SRC_DIR/VERSION" ]; then
+            VERSION="$(tr -d '[:space:]' < "$SRC_DIR/VERSION")"
+        fi
+        [ -n "$VERSION" ] || VERSION="$(date +%Y%m%d-%H%M)"
+    fi
+    log "  版本号：${VERSION}"
 
     # 2. 记录旧镜像，便于回滚
     if docker image inspect "${IMAGE_NAME}:latest" >/dev/null 2>&1; then
