@@ -3,6 +3,7 @@ package qrcode
 import (
 	"fmt"
 	"html"
+	"image/color"
 	"math"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 // SVG 渲染（坐标按 float32 逐步舍入，与原生库逐字节一致）。
 
-// RenderSVG 输出与原生库逐字节一致的 SVG（默认徽标 URL 时）。
+// RenderSVG 输出与原生库逐字节一致的 SVG（默认徽标 URL 且经典风格时）。
 func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 	badge := opt.BadgeHref
 	if badge == "" || badge == "default" {
@@ -22,27 +23,67 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 	b.Grow(40000)
 	b.WriteString("<svg width=\"600\" height=\"600\" version=\"1.1\"                     " +
 		"xmlns=\"http://www.w3.org/2000/svg\"  xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n")
+	style := ParseStyle(opt.Style)
+	colorMode := ParseColorMode(opt.ColorMode)
+	ink := runInk(colorMode)    // 每笔画一色：彩虹 / 色环
+	rings := ringInk(colorMode) // 定位环的取色
+	hand := style == StyleHand
+	// 隐形配色：整张图只有一个很淡的墨色（SVG 没有底色，按白底推）
+	ghost := color.RGBA{}
+	if ghostActive(colorMode) {
+		ghost = ghostInk(color.RGBA{255, 255, 255, 255}, opt.GhostLevel)
+		ink = func(int, int, int) color.RGBA { return ghost }
+		rings = func(int) color.RGBA { return ghost }
+	}
+	// 手绘风格下徽标也要"手贴"上去：用位移滤镜把边缘揉歪，和满纸墨线才配得上
+	if hand {
+		b.WriteString(badgeInkFilter)
+	}
 	side := float32(float64(wxSize) + float64(wxSize)*10.0)
-	if badge != "none" && badge != "off" {
-		fmt.Fprintf(&b, "<image xlink:href=\"%s\"  x=\"419.593964\" y=\"419.593964\"  width=\"%s\" height=\"%s\"/>\n",
-			html.EscapeString(badge), fmt6(float64(side)), fmt6(float64(side)))
-	}
-	for _, c := range finderCenters {
-		for _, ring := range []struct {
-			k     float64
-			color string
-		}{{2.5, "black"}, {1.7, "white"}, {0.5, "black"}} {
-			fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"%s\"/>\n",
-				fmt6(c[0]), fmt6(c[1]), fmt6(ring.k*float64(wxSize)), ring.color)
+	// 隐形模式下不画徽标（彩色小图标会暴露这是一枚码）
+	if badge != "none" && badge != "off" && !ghostActive(colorMode) {
+		filter := ""
+		if hand {
+			filter = ` filter="url(#wxbadgeink)"`
 		}
+		fmt.Fprintf(&b, "<image xlink:href=\"%s\"  x=\"419.593964\" y=\"419.593964\"  width=\"%s\" height=\"%s\"%s/>\n",
+			html.EscapeString(badge), fmt6(float64(side)), fmt6(float64(side)), filter)
 	}
-	for _, run := range gridRuns(info.Grid) {
-		x1, y1 := cellPos(run.Row, run.Col1)
-		x2, y2 := cellPos(run.Row, run.Col2)
-		fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"black\"/>\n", fmt6(x1), fmt6(y1), fmt6(wxCap))
-		fmt.Fprintf(&b, "<line x1=\"%s\" y1=\"%s\" x2=\"%s\" y2=\"%s\"                                 "+
-			"style=\"stroke:rgb(0, 0, 0); stroke-width:%s\"/>\n", fmt6(x1), fmt6(y1), fmt6(x2), fmt6(y2), fmt6(wxStroke))
-		fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"black\"/>\n", fmt6(x2), fmt6(y2), fmt6(wxCap))
+	switch {
+	case hand:
+		writeHandSVG(&b, info.Grid, opt.ColorMode, ghost)
+	case style == StyleDot:
+		writeSVGCells(&b, info.Grid, ink, svgCircle)
+		writeSVGRings(&b, rings)
+	case style == StyleBlock:
+		writeSVGCells(&b, info.Grid, ink, svgBox)
+		writeSVGRings(&b, rings)
+	case style == StyleLine:
+		writeSVGCells(&b, info.Grid, ink, svgHollow)
+		writeSVGRings(&b, rings)
+	case ink != nil || rings != nil:
+		// 彩色（彩虹风格 / 色环配色）：形状同经典，只是逐笔上色
+		writeSVGRunsInk(&b, info.Grid, ink)
+		writeSVGRings(&b, rings)
+	default:
+		// 经典：与微信原生输出逐字节一致
+		for _, c := range finderCenters {
+			for _, ring := range []struct {
+				k     float64
+				color string
+			}{{2.5, "black"}, {1.7, "white"}, {0.5, "black"}} {
+				fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"%s\"/>\n",
+					fmt6(c[0]), fmt6(c[1]), fmt6(ring.k*float64(wxSize)), ring.color)
+			}
+		}
+		for _, run := range gridRuns(info.Grid) {
+			x1, y1 := cellPos(run.Row, run.Col1)
+			x2, y2 := cellPos(run.Row, run.Col2)
+			fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"black\"/>\n", fmt6(x1), fmt6(y1), fmt6(wxCap))
+			fmt.Fprintf(&b, "<line x1=\"%s\" y1=\"%s\" x2=\"%s\" y2=\"%s\"                                 "+
+				"style=\"stroke:rgb(0, 0, 0); stroke-width:%s\"/>\n", fmt6(x1), fmt6(y1), fmt6(x2), fmt6(y2), fmt6(wxStroke))
+			fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"black\"/>\n", fmt6(x2), fmt6(y2), fmt6(wxCap))
+		}
 	}
 	if opt.CenterHref != "" {
 		b.WriteString("<clipPath id=\"wxcenter\"><circle cx=\"300\" cy=\"300\" r=\"130\"/></clipPath>\n")
@@ -52,6 +93,53 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 	writeSVGWatermark(&b, opt.Watermark)
 	b.WriteString("</svg>\n")
 	return b.String()
+}
+
+// badgeInkFilter 是手绘风格下给角落徽标用的位移滤镜：
+// feTurbulence 生成一层噪声，feDisplacementMap 按噪声把像素推歪，
+// 于是徽标的圆边也变成手画的那种不齐。scale 是 600 坐标系下的位移量（±scale/2）。
+const badgeInkFilter = "<defs><filter id=\"wxbadgeink\" x=\"-12%\" y=\"-12%\" width=\"124%\" height=\"124%\">" +
+	"<feTurbulence type=\"fractalNoise\" baseFrequency=\"0.042\" numOctaves=\"2\" seed=\"11\" result=\"wxink\"/>" +
+	"<feDisplacementMap in=\"SourceGraphic\" in2=\"wxink\" scale=\"5\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>" +
+	"</filter></defs>\n"
+
+// writeHandSVG 输出手绘风格的矢量笔画。
+//
+// 几何与位图路径完全同源（都来自 handStrokes），所以 PNG 与 SVG 的抖动
+// 位置是一致的；区别只是矢量图里一条笔画只能有一个笔宽，这里取该笔画的均值。
+func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost color.RGBA) {
+	b.WriteString("<g fill=\"none\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
+	for idx, pass := range handStrokes(g) {
+		if len(pass.Pts) < 2 {
+			continue
+		}
+		// 取笔画中段的平均笔宽：两端是起收笔的尖/顿，算进去会让矢量版整笔偏细
+		lo, hi := 0, len(pass.Pts)
+		if hi-lo >= 5 {
+			lo, hi = 2, hi-2
+		}
+		sum := 0.0
+		for _, p := range pass.Pts[lo:hi] {
+			sum += p.W
+		}
+		b.WriteString("<path d=\"")
+		for i, p := range pass.Pts {
+			if i == 0 {
+				fmt.Fprintf(b, "M%s %s", fmt6(p.X), fmt6(p.Y))
+			} else {
+				fmt.Fprintf(b, "L%s %s", fmt6(p.X), fmt6(p.Y))
+			}
+		}
+		stroke := ""
+		if ghost.A != 0 {
+			stroke = " stroke=\"" + svgHex(ghost) + "\""
+		} else if randomActive(colorMode) || gradientActive(colorMode) {
+			c := handInk(colorMode, idx, pass)
+			stroke = " stroke=\"" + svgHex(c) + "\""
+		}
+		fmt.Fprintf(b, "\"%s stroke-width=\"%s\"/>\n", stroke, fmt6(sum/float64(hi-lo)))
+	}
+	b.WriteString("</g>\n")
 }
 
 // writeSVGWatermark 在 SVG 末尾追加文字水印。

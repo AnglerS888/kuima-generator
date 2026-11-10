@@ -40,6 +40,9 @@ type batchRequest struct {
 	Logo      string  `json:"logo"`
 	LogoRatio float64 `json:"logoRatio"`
 	Badge     string  `json:"badge"`
+	Style     string  `json:"style"`
+	Color     string  `json:"color"`
+	Ghost     int     `json:"ghost"`
 
 	// 水印（公共参数，作用于所有条目；规则同单条接口）
 	Watermark         *bool  `json:"watermark"`
@@ -64,6 +67,9 @@ type batchItem struct {
 	Logo      string  `json:"logo"`
 	LogoRatio float64 `json:"logoRatio"`
 	Badge     string  `json:"badge"`
+	Style     string  `json:"style"`
+	Color     string  `json:"color"`
+	Ghost     int     `json:"ghost"`
 }
 
 // batchResult 是单条的结果。
@@ -206,6 +212,9 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 		Logo:      body.Logo,
 		LogoRatio: body.LogoRatio,
 		Badge:     body.Badge,
+		Style:     body.Style,
+		Color:     body.Color,
+		Ghost:     body.Ghost,
 	}
 	if body.Mask != nil {
 		req.Mask = *body.Mask
@@ -234,6 +243,15 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 	}
 	if item.Badge != "" {
 		req.Badge = item.Badge
+	}
+	if item.Style != "" {
+		req.Style = item.Style
+	}
+	if item.Color != "" {
+		req.Color = item.Color
+	}
+	if item.Ghost > 0 {
+		req.Ghost = item.Ghost
 	}
 	req.wm = body.wm
 	req.normalize()
@@ -305,9 +323,7 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 	// format 只影响渲染目标格式，不影响响应结构。
 	switch req.Format {
 	case "svg":
-		out.SVG = qrcode.RenderSVG(info, qrcode.SVGOptions{
-			CenterHref: imagex.DataURIOf(logo), BadgeHref: badgeHref, Watermark: req.wm,
-		})
+		out.SVG = qrcode.RenderSVG(info, svgOptions(req, logo, badgeHref))
 	case "json":
 		png, err := qrcode.RenderPNG(info, renderOptions(req, logo, badgeImg))
 		if err != nil {
@@ -317,9 +333,7 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 			out.Error = err.Error()
 			return out, false
 		}
-		out.SVG = qrcode.RenderSVG(info, qrcode.SVGOptions{
-			CenterHref: imagex.DataURIOf(logo), BadgeHref: badgeHref, Watermark: req.wm,
-		})
+		out.SVG = qrcode.RenderSVG(info, svgOptions(req, logo, badgeHref))
 		out.PNGBase64 = base64.StdEncoding.EncodeToString(png)
 		out.Bytes = len(png)
 	default:

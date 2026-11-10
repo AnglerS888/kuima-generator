@@ -685,6 +685,35 @@
               </div>
             </div>
 
+            <div class="form-row">
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field" for="styleSel">笔画风格</label>
+                <select class="custom-select custom-select-sm" id="styleSel">
+                  <option value="classic" selected>经典（与微信原生一致）</option>
+                  <option value="hand">手绘（笔线抖动）</option>
+                  <option value="dot">圆点</option>
+                  <option value="block">方块</option>
+                  <option value="line">线描（细环＋中心点）</option>
+                </select>
+                <div class="text-dim mt-1" style="font-size:.72rem" id="styleHint">经典：等宽笔画，与微信原生一致</div>
+              </div>
+              <div class="col-12 col-md-6 mb-2">
+                <label class="field" for="colorSel">墨色</label>
+                <select class="custom-select custom-select-sm" id="colorSel">
+                  <option value="solid" selected>纯色（用前景色）</option>
+                  <option value="rainbow">色环（按半径渐变）</option>
+                  <option value="random">彩虹（每笔随机色）</option>
+                  <option value="ghost">隐形（几乎看不出来）</option>
+                </select>
+                <div class="text-dim mt-1" style="font-size:.72rem" id="colorHint">纯色：所有墨点都用上面的前景色</div>
+                <div id="ghostRow" hidden>
+                  <label class="field mt-2" for="ghostLevel">隐形深度 <span class="text-dim" id="ghostVal">6</span> 级</label>
+                  <input type="range" class="custom-range" id="ghostLevel" min="2" max="20" step="1" value="6">
+                  <div class="text-dim mt-1" style="font-size:.72rem" id="ghostHint">2~4 几乎看不见（程序能解），8 以上手机更容易扫</div>
+                </div>
+              </div>
+            </div>
+
             <hr>
 
             <div class="form-row align-items-end">
@@ -1089,6 +1118,9 @@
                 <tr><td><code>logo</code></td><td>string</td><td>否</td><td>中心 logo：<code>data:image/png;base64,...</code> / http(s) URL / 裸 base64 / 服务器本地路径。传 <b>GIF 动图</b>且 format=gif 时，逐帧替换中心图，得到动图。</td></tr>
                 <tr><td><code>logoRatio</code></td><td>float</td><td>否</td><td>logo 半径缩放，默认 1（半径 108/600）。&gt;1.12 开始压到数据格，靠纠错兜底。</td></tr>
                 <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL。</td></tr>
+                <tr><td><code>style</code></td><td>string</td><td>否</td><td>笔画风格（只决定形状）：<code>classic</code>（默认，等宽胶囊）/ <code>hand</code>（手绘）/ <code>dot</code>（圆点）/ <code>block</code>（方块）/ <code>line</code>（线描：细环＋中心点）。</td></tr>
+                <tr><td><code>color</code></td><td>string</td><td>否</td><td>配色（只决定墨色，可与任意笔画风格组合）：<code>solid</code>（默认，用 <code>fg</code>）/ <code>rainbow</code>（色环：按半径渐变）/ <code>random</code>（彩虹：每一笔随机一色）/ <code>ghost</code>（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 <code>fg</code>。</td></tr>
+                <tr><td><code>ghost</code></td><td>int</td><td>否</td><td>隐形深度：墨色比底色深几级，2~40，默认 6。越小越隐形、越难扫（2~4 基本看不见但只有程序能解，8 以上手机更容易扫）。仅 <code>color=ghost</code> 时生效。</td></tr>
               </tbody>
             </table>
           </div>
@@ -1538,6 +1570,9 @@
 
   /* ================= 生成 ================= */
   let fmt = 'png';
+  let inkStyle = 'classic';
+  let inkColor = 'solid';
+  let inkGhost = 6;
   let logoDataURL = '';
   let logoAnimated = false;
   let lastBlob = null;
@@ -1567,6 +1602,71 @@
       generate(null, { silent: true });
     });
   });
+
+  const styleSel = $('#styleSel');
+  const colorSel = $('#colorSel');
+  const styleHints = {
+    classic: '经典：等宽笔画，与微信原生一致',
+    hand: '手绘：笔线抖动、粗细不匀，仍可正常扫码',
+    dot: '圆点：每格一颗圆珠，风格最轻快',
+    block: '方块：每格一个方块，像素／复古味',
+    line: '线描：细环 + 中心点，线稿感；墨量最轻'
+  };
+  const colorHints = {
+    solid: '纯色：所有墨点都用上面的前景色',
+    rainbow: '色环：墨色按半径渐变（内圈青 → 外圈品红），前景色不生效',
+    random: '彩虹：每一笔（一个圆点或一条线段）随机取一个颜色',
+    ghost: '隐形：墨色只比底色深几级，肉眼几乎看不出；徽标会自动隐藏，请用 PNG 输出'
+  };
+  function setStyle(next) {
+    inkStyle = styleSel.querySelector('[value="' + next + '"]') ? next : 'classic';
+    styleSel.value = inkStyle;
+    $('#styleHint').textContent = styleHints[inkStyle];
+  }
+  function setColorMode(next) {
+    inkColor = (next === 'rainbow' || next === 'random' || next === 'ghost') ? next : 'solid';
+    colorSel.value = inkColor;
+    $('#colorHint').textContent = colorHints[inkColor];
+    $('#ghostRow').hidden = inkColor !== 'ghost';
+    // 色环 / 隐形都不用前景色，置灰免得用户白调
+    const fg = $('#fg');
+    fg.disabled = inkColor !== 'solid';
+    fg.title = inkColor === 'solid' ? '' : '当前配色不使用前景色';
+  }
+  // 选过的风格/配色记在本地，下次打开页面直接带出
+  const STYLE_CACHE_KEY = 'wxcode.style.v2';
+  function saveInk() {
+    try { localStorage.setItem(STYLE_CACHE_KEY, JSON.stringify({ style: inkStyle, color: inkColor, ghost: inkGhost })); } catch (e) {}
+  }
+  const ghostLevel = $('#ghostLevel');
+  ghostLevel.addEventListener('input', () => {
+    inkGhost = parseInt(ghostLevel.value, 10) || 6;
+    $('#ghostVal').textContent = inkGhost;
+  });
+  ghostLevel.addEventListener('change', () => {
+    saveInk();
+    generate(null, { silent: true });
+  });
+  styleSel.addEventListener('change', () => {
+    setStyle(styleSel.value);
+    saveInk();
+    generate(null, { silent: true });
+  });
+  colorSel.addEventListener('change', () => {
+    setColorMode(colorSel.value);
+    saveInk();
+    generate(null, { silent: true });
+  });
+  try {
+    const saved = JSON.parse(localStorage.getItem(STYLE_CACHE_KEY) || 'null');
+    if (saved && typeof saved === 'object') {
+      setStyle(saved.style || 'classic');
+      inkGhost = parseInt(saved.ghost, 10) || 6;
+      ghostLevel.value = inkGhost;
+      $('#ghostVal').textContent = inkGhost;
+      setColorMode(saved.color || 'solid');
+    }
+  } catch (e) { /* 隐私模式禁用 localStorage 时忽略 */ }
 
   const logoFile = $('#logoFile');
   const logoThumb = $('#logoThumb');
@@ -1708,7 +1808,10 @@
       bg: $('#bg').value,
       logo: logoDataURL,
       logoRatio: parseFloat($('#logoRatio').value) || 1,
-      badge: $('#badgeOn').checked ? '' : 'none'
+      badge: $('#badgeOn').checked ? '' : 'none',
+      style: inkStyle,
+      color: inkColor,
+      ghost: inkGhost
     };
     // 水印：只有「当前身份可配置」时才发参数；不发则由服务端按全局配置兜底
     // （none/admin 模式服务端会忽略参数，user 模式未登录也不会加水印）。
@@ -2189,7 +2292,10 @@
           level: $('#addLevel').value,
           logo: addLogoURL,
           logoRatio: parseFloat($('#addLogoRatio').value) || 1,
-          badge: $('#addBadge').checked ? '' : 'none'
+          badge: $('#addBadge').checked ? '' : 'none',
+          style: inkStyle,
+          color: inkColor,
+          ghost: inkGhost
         }),
         signal: ticket.signal
       });

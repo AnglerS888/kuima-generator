@@ -1,14 +1,47 @@
 package qrcode
 
 import (
+	"image/color"
 	"math"
 )
 
-// 位图光栅化图元：圆、圆头线段与超采样二值化。
+// 位图光栅化图元：圆、圆头线段、方块与超采样二值化。
 
 type raster struct {
 	w, h int
 	mask []byte // 1 = 暗色
+	// 彩色风格（色环 / 彩虹）才用：每个像素属于哪一笔的颜色。
+	// pal 为 nil 时 idx 不分配，渲染走原来的"统一前景色"路径。
+	pal *inkPal
+	idx []byte
+	cur uint8 // 当前这一笔的调色板下标
+}
+
+// inkPal 是彩色风格用的小调色板，下标 0 固定是前景色。
+type inkPal struct{ cols []color.RGBA }
+
+func newInkPal(fg color.RGBA) *inkPal { return &inkPal{cols: []color.RGBA{fg}} }
+
+// index 返回颜色在调色板里的下标，没有就追加。
+func (p *inkPal) index(c color.RGBA) uint8 {
+	for i, v := range p.cols {
+		if v == c {
+			return uint8(i)
+		}
+	}
+	if len(p.cols) >= 255 {
+		return 0
+	}
+	p.cols = append(p.cols, c)
+	return uint8(len(p.cols) - 1)
+}
+
+// mark 把一个像素标成暗色，并记下它属于哪一笔的颜色。
+func (r *raster) mark(i int) {
+	r.mask[i] = 1
+	if r.idx != nil {
+		r.idx[i] = r.cur
+	}
 }
 
 func (r *raster) fillDisc(cx, cy, rad float64) {
@@ -38,7 +71,7 @@ func (r *raster) fillDisc(cx, cy, rad float64) {
 		for x := x0; x <= x1; x++ {
 			dx := float64(x) + 0.5 - cx
 			if dx*dx+dy*dy <= rr {
-				r.mask[row+x] = 1
+				r.mark(row + x)
 			}
 		}
 	}
@@ -128,7 +161,61 @@ func (r *raster) fillCapsule(x1, y1, x2, y2, width float64) {
 			ddx := px - qx
 			ddy := py - qy
 			if ddx*ddx+ddy*ddy <= rr {
-				r.mask[row+x] = 1
+				r.mark(row + x)
+			}
+		}
+	}
+}
+
+// inkStroke 沿点列铺一条笔宽可变的笔画（相邻两点用一个胶囊连接）。
+//
+// 点的 W 是这一点的笔宽，连接处取两端均值，于是笔画能自然地从粗到细收笔。
+func (r *raster) inkStroke(pts []inkPt) {
+	switch len(pts) {
+	case 0:
+		return
+	case 1:
+		r.fillDisc(pts[0].X, pts[0].Y, pts[0].W/2)
+		return
+	}
+	for i := 0; i+1 < len(pts); i++ {
+		a, b := pts[i], pts[i+1]
+		r.fillCapsule(a.X, a.Y, b.X, b.Y, (a.W+b.W)/2)
+	}
+}
+
+// fillBox 画一个以 (cx,cy) 为中心、边长 side、绕中心旋转 ang 弧度的方块。
+// 方块风格用：格子本身沿极轴排布，方块跟着转过来才排得整齐。
+func (r *raster) fillBox(cx, cy, side, ang float64) {
+	h := side / 2
+	if h <= 0 {
+		return
+	}
+	c, s := math.Cos(ang), math.Sin(ang)
+	rng := h * (math.Abs(c) + math.Abs(s))
+	x0 := int(math.Floor(cx - rng))
+	x1 := int(math.Ceil(cx + rng))
+	y0 := int(math.Floor(cy - rng))
+	y1 := int(math.Ceil(cy + rng))
+	if x0 < 0 {
+		x0 = 0
+	}
+	if y0 < 0 {
+		y0 = 0
+	}
+	if x1 > r.w-1 {
+		x1 = r.w - 1
+	}
+	if y1 > r.h-1 {
+		y1 = r.h - 1
+	}
+	for y := y0; y <= y1; y++ {
+		dy := float64(y) + 0.5 - cy
+		row := y * r.w
+		for x := x0; x <= x1; x++ {
+			dx := float64(x) + 0.5 - cx
+			if math.Abs(dx*c+dy*s) <= h && math.Abs(-dx*s+dy*c) <= h {
+				r.mark(row + x)
 			}
 		}
 	}

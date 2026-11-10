@@ -8,7 +8,7 @@
 
 <!-- 版本号与仓库根目录的 VERSION 文件保持一致 -->
 [![在线演示](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E6%BC%94%E7%A4%BA-wx.xbao.fun-2F6BFF?logo=googlechrome&logoColor=white)](https://wx.xbao.fun)
-[![Version](https://img.shields.io/badge/version-1.0.2-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-07C160)](https://github.com/AnglerS888/kuima-generator/releases)
 [![Gitee](https://img.shields.io/badge/Gitee-anglers%2Fkuima--generator-C71D23?logo=gitee&logoColor=white)](https://gitee.com/anglers/kuima-generator)
 [![GitHub](https://img.shields.io/badge/GitHub-AnglerS888%2Fkuima--generator-181717?logo=github&logoColor=white)](https://github.com/AnglerS888/kuima-generator)
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
@@ -29,6 +29,8 @@
 ## 功能
 
 - **生成葵花码**：输入网址或文字，输出 PNG / JPG / SVG / GIF，尺寸、留白、颜色、纠错等级可调。
+- **笔画风格**：经典 / 手绘 / 圆点 / 方块 / 线描五种画法，抖动与变形都控制在半格内，不影响扫码；手绘风格下角落徽标也会一起"手贴"歪。
+- **配色**（与笔画风格自由组合）：纯色（用前景色）/ 色环（按半径渐变）/ 彩虹（每一笔随机一色）/ **隐形**（墨色只比底色深 2~40 级，肉眼几乎看不出，程序与手机仍可识别；深度可调，越小越隐蔽）。
 - **中心 Logo**：上传 PNG / JPG / GIF，GIF 动图能生成会动的码；后台可维护一批预设 Logo，用户一键选用。
 - **徽标与文字水印**：角落徽标可开关或换图；水印支持多位置、平铺 / 斜铺，颜色、透明度可调。
 - **解析**：截图、拍照、轻微旋转、带 Logo 的码都能识别。
@@ -48,6 +50,10 @@
 **后台 · 预设 Logo**
 
 <img src="docs/screenshot-preset.png" width="860" alt="后台预设 Logo">
+
+**笔画风格 × 配色（第一行 经典 / 手绘 / 圆点，第二行 方块 / 线描 / 经典·彩虹，第三行 经典·色环 / 圆点·彩虹 / 手绘·色环）**
+
+<img src="docs/style-samples.png" width="860" alt="笔画风格一览">
 
 ## 安装
 

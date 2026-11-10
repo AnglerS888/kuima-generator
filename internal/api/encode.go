@@ -36,6 +36,9 @@ type runtimeMeta struct {
 	Codewords    int    `json:"codewords"`
 	ECCodewords  int    `json:"ecCodewords"`
 	Size         int    `json:"size,omitempty"`
+	Style        string `json:"style,omitempty"`
+	Color        string `json:"color,omitempty"`
+	Ghost        int    `json:"ghost,omitempty"`
 	SVG          string `json:"svg,omitempty"`
 	PNGBase64    string `json:"pngBase64,omitempty"`
 	LogoAnimated bool   `json:"logoAnimated,omitempty"`
@@ -94,6 +97,21 @@ func renderOptions(req *encodeReq, logo *imagex.ImageRef, badge image.Image) qrc
 		LogoFrames: imagex.FramesOf(logo),
 		LogoDelays: imagex.DelaysOf(logo),
 		Badge:      badge,
+		Style:      req.Style,
+		ColorMode:  req.Color,
+		GhostLevel: req.Ghost,
+		Watermark:  req.wm,
+	}
+}
+
+// svgOptions 把请求参数转成 SVG 渲染选项。
+func svgOptions(req *encodeReq, logo *imagex.ImageRef, badgeHref string) qrcode.SVGOptions {
+	return qrcode.SVGOptions{
+		CenterHref: imagex.DataURIOf(logo),
+		BadgeHref:  badgeHref,
+		Style:      req.Style,
+		ColorMode:  req.Color,
+		GhostLevel: req.Ghost,
 		Watermark:  req.wm,
 	}
 }
@@ -162,7 +180,7 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 
 	switch req.Format {
 	case "svg":
-		svg := qrcode.RenderSVG(info, qrcode.SVGOptions{CenterHref: imagex.DataURIOf(logo), BadgeHref: badgeHref, Watermark: req.wm})
+		svg := qrcode.RenderSVG(info, svgOptions(req, logo, badgeHref))
 		setCodeHeaders(w, info)
 		w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 		// SVG 是可主动执行的文档。即使未来新增图片来源，也不允许它在直接打开时运行脚本。
@@ -179,11 +197,14 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 		}
 		meta := metaOf(info, "json")
 		meta.Size = req.Size
+		meta.Style = req.Style
+		meta.Color = req.Color
+		meta.Ghost = req.Ghost
 		if animated, frames := imagex.AnimInfo(logo); animated {
 			meta.LogoAnimated = true
 			meta.LogoFrames = frames
 		}
-		meta.SVG = qrcode.RenderSVG(info, qrcode.SVGOptions{CenterHref: imagex.DataURIOf(logo), BadgeHref: badgeHref, Watermark: req.wm})
+		meta.SVG = qrcode.RenderSVG(info, svgOptions(req, logo, badgeHref))
 		meta.PNGBase64 = base64.StdEncoding.EncodeToString(pngBytes)
 		httpx.WriteJSON(w, http.StatusOK, meta)
 		return info, len(pngBytes), true

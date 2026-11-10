@@ -77,6 +77,77 @@ func drawImageBox(dst *image.RGBA, src image.Image, x, y, w, h float64) {
 	}
 }
 
+// drawImageInk 以「手绘」的方式把 src 贴进 dst 的 (x,y,w,h) 方框。
+//
+// 与 drawImageBox 的区别只在采样坐标：
+//   - 叠一层低频位移场，整块图像像被手捏着按上去的，边缘不在一个正圆上；
+//   - 边界附近再叠一点高频噪声，墨迹边界毛毛的，不是刀切一样齐。
+//
+// 位移幅度按方框边长取比例，所以 600 和 2000 两种输出的手感一致。
+func drawImageInk(dst *image.RGBA, src image.Image, x, y, w, h float64) {
+	b := src.Bounds()
+	sw, sh := float64(b.Dx()), float64(b.Dy())
+	if sw <= 0 || sh <= 0 || w <= 0 || h <= 0 {
+		return
+	}
+	const amp = 0.018 // 边长的 1.8%，600 坐标系下约 2.2px
+	// 采样域比图片本身多留 3% 的透明边：徽标图是满幅的（绿圆贴着图边），
+	// 不留这点余量，往外抖的那一下就会被削平，圆边上出现直线段。
+	const pad = 0.03
+	x0 := int(math.Floor(x))
+	y0 := int(math.Floor(y))
+	x1 := int(math.Ceil(x + w))
+	y1 := int(math.Ceil(y + h))
+	for py := y0; py <= y1; py++ {
+		if py < dst.Rect.Min.Y || py >= dst.Rect.Max.Y {
+			continue
+		}
+		for px := x0; px <= x1; px++ {
+			if px < dst.Rect.Min.X || px >= dst.Rect.Max.X {
+				continue
+			}
+			nx := (float64(px) + 0.5 - x) / w
+			ny := (float64(py) + 0.5 - y) / h
+			// 低频（一笔画歪了）+ 高频（笔尖的抖）两段，才像手画的而不是揉皱的
+			du := amp * (0.75*math.Sin(4.1*nx+2.3*ny+1.7) +
+				0.45*math.Sin(11.7*nx-8.9*ny+0.3) + 0.22*math.Sin(27.3*nx+19.1*ny+2.1))
+			dv := amp * (0.75*math.Sin(3.7*ny-2.1*nx+2.9) +
+				0.45*math.Sin(10.9*ny+7.3*nx+1.1) + 0.22*math.Sin(25.1*ny-17.9*nx+0.7))
+			u := (nx*(1+2*pad) - pad + du) * sw
+			v := (ny*(1+2*pad) - pad + dv) * sh
+			// 抖到图外就当作透明：bilinearPremul 会把越界坐标钳到边缘像素上，
+			// 那样徽标边缘会被"拉"出一条色带。
+			if u < 0 || v < 0 || u >= sw || v >= sh {
+				continue
+			}
+			sr, sg, sb, sa := bilinearPremul(src, float64(b.Min.X)+u, float64(b.Min.Y)+v)
+			if sa > 0 && sa < 1 {
+				// 只在边界带上动手：把覆盖度按高频噪声推一下，边就毛了。
+				// 颜色是预乘的，alpha 变了要同比例缩放，否则边界会发白发黑。
+				n := 0.5 * (math.Sin(41.3*nx+27.1*ny+0.7) + 0.5*math.Sin(67.9*nx-53.3*ny+1.9))
+				na := sa + n*(1-math.Abs(2*sa-1))*0.55
+				if na < 0 {
+					na = 0
+				} else if na > 1 {
+					na = 1
+				}
+				k := na / sa
+				sr, sg, sb, sa = sr*k, sg*k, sb*k, na
+				if sr > 255 {
+					sr = 255
+				}
+				if sg > 255 {
+					sg = 255
+				}
+				if sb > 255 {
+					sb = 255
+				}
+			}
+			overPixel(dst, px, py, sr, sg, sb, sa)
+		}
+	}
+}
+
 func fillWhiteDisc(dst *image.RGBA, cx, cy, r float64) {
 	rr := r * r
 	for y := int(math.Floor(cy - r)); y <= int(math.Ceil(cy+r)); y++ {

@@ -40,6 +40,12 @@ type SVGOptions struct {
 	CenterHref string
 	// Watermark 非空时在 SVG 末尾追加 <text> 水印（由浏览器用系统字体渲染）。
 	Watermark *watermark.Config
+	// Style 是笔画风格，见 ParseStyle；空值等同 classic。
+	Style string
+	// ColorMode 是配色模式，见 ParseColorMode；空值等同 solid（用前景色）。
+	ColorMode string
+	// GhostLevel 只在隐形配色下生效：墨色比底色深多少级（2~40），默认 GhostDefault。
+	GhostLevel int
 }
 
 // RenderOptions 控制 PNG 输出。
@@ -51,6 +57,12 @@ type RenderOptions struct {
 	Logo      image.Image // 中心 logo，可为 nil
 	LogoRatio float64     // logo 半径相对默认 108/600 的缩放，默认 1
 	Badge     image.Image // 345° 楔形区的小图标，可为 nil
+	// Style 是笔画风格，见 ParseStyle；空值等同 classic。
+	Style string
+	// ColorMode 是配色模式，见 ParseColorMode；空值等同 solid（用前景色）。
+	ColorMode string
+	// GhostLevel 只在隐形配色下生效：墨色比底色深多少级（2~40），默认 GhostDefault。
+	GhostLevel int
 
 	// LogoFrames/LogoDelays 仅在输出 GIF 时使用：动图 logo 的逐帧画面与延时（1/100 秒）。
 	// 为空时按静态 Logo 处理。

@@ -18,7 +18,7 @@ FROM ${GO_IMAGE} AS builder
 
 WORKDIR /app
 
-# 版本号：优先 --build-arg VERSION=1.0.2，否则读仓库根目录的 VERSION 文件
+# 版本号：优先 --build-arg VERSION=1.1.0，否则读仓库根目录的 VERSION 文件
 # （在线更新就是拿这个值和远端 VERSION 比对，两边必须一致）
 ARG VERSION=
 # 构建时间：自动取当前 UTC 时间，也可手动 --build-arg BUILD_TIME=... 覆盖
