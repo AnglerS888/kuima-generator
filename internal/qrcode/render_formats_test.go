@@ -134,3 +134,34 @@ func TestGIFTimelineLoopsAndSamplesWholeCycle(t *testing.T) {
 		t.Fatalf("sampling truncated the animation: %v", steps)
 	}
 }
+
+func TestRenderGIFSamplingPreservesFastAndSlowAnimations(t *testing.T) {
+	info, err := Encode("https://example.com/", DefaultEncodeConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	red := gifTestFrame(color.RGBA{R: 255, A: 255})
+	blue := gifTestFrame(color.RGBA{B: 255, A: 255})
+	opt := RenderOptions{Size: 180,
+		LogoFrames: []image.Image{red, blue}, LogoDelays: []int{2, 2},
+		BadgeFrames: []image.Image{red, blue}, BadgeDelays: []int{200, 200},
+	}
+	raw, err := RenderGIF(info, opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := gif.DecodeAll(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	center, corner := map[color.Color]bool{}, map[color.Color]bool{}
+	total := 0
+	for i, frame := range out.Image {
+		center[frame.At(90, 90)] = true
+		corner[frame.At(144, 144)] = true
+		total += out.Delay[i]
+	}
+	if len(out.Image) != gifMaxFrames || total != 400 || len(center) < 2 || len(corner) < 2 {
+		t.Fatalf("sampling lost animation: frames=%d duration=%d logo colors=%d badge colors=%d", len(out.Image), total, len(center), len(corner))
+	}
+}

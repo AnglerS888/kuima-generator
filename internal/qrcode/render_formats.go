@@ -96,20 +96,29 @@ func newGIFTrack(frames []image.Image, delays []int, fallback image.Image) gifTr
 
 // at 返回指定时间的画面，以及距离下一次切帧的时间；短动画独立循环。
 func (t gifTrack) at(time int) (image.Image, int) {
-	if len(t.frames) == 0 {
+	i, remaining := t.frameAt(time)
+	if i < 0 {
 		return nil, 0
 	}
+	return t.frames[i], remaining
+}
+
+// frameAt also exposes the frame index for choosing representative samples.
+func (t gifTrack) frameAt(time int) (int, int) {
+	if len(t.frames) == 0 {
+		return -1, 0
+	}
 	if t.duration == 0 {
-		return t.frames[0], 0
+		return 0, 0
 	}
 	position := time % t.duration
 	for i, delay := range t.delays {
 		if position < delay {
-			return t.frames[i], delay - position
+			return i, delay - position
 		}
 		position -= delay
 	}
-	return t.frames[0], 0
+	return 0, 0
 }
 
 type gifStep struct{ time, delay int }
@@ -142,13 +151,7 @@ func gifTimeline(logo, badge gifTrack) []gifStep {
 		steps = append(steps, gifStep{time, delay})
 		time += delay
 		if len(steps) > gifMaxFrames {
-			// 保留总时长和播放速度，不只保留前 20 帧。
-			steps = nil
-			for i := 0; i < gifMaxFrames; i++ {
-				start := i * duration / gifMaxFrames
-				end := (i + 1) * duration / gifMaxFrames
-				steps = append(steps, gifStep{start, end - start})
-			}
+			steps = sampleGIFTimeline(logo, badge, duration)
 			break
 		}
 	}
@@ -172,6 +175,50 @@ func gifTimeline(logo, badge gifTrack) []gifStep {
 		merged = merged[:len(merged)-1]
 	}
 	return merged
+}
+
+// sampleGIFTimeline keeps equal output intervals, but chooses a representative
+// source time within each interval. Prefer underrepresented frames in both
+// tracks so a fast animation cannot disappear through periodic sampling.
+func sampleGIFTimeline(logo, badge gifTrack, duration int) []gifStep {
+	tracks := []gifTrack{logo, badge}
+	counts := [][]int{make([]int, len(logo.frames)), make([]int, len(badge.frames))}
+	steps := make([]gifStep, 0, gifMaxFrames)
+	for i := 0; i < gifMaxFrames; i++ {
+		start := i * duration / gifMaxFrames
+		end := (i + 1) * duration / gifMaxFrames
+		candidates := []int{start}
+		for _, track := range tracks {
+			// One cycle visits each source frame; later cycles repeat candidates.
+			for time, n := start, 0; n < len(track.frames); n++ {
+				_, remaining := track.frameAt(time)
+				if remaining == 0 || time+remaining >= end {
+					break
+				}
+				time += remaining
+				candidates = append(candidates, time)
+			}
+		}
+		best, bestScore := start, -1
+		for _, time := range candidates {
+			score := 0
+			for j, track := range tracks {
+				if frame, _ := track.frameAt(time); frame >= 0 && track.duration > 0 {
+					score += 1000000 / (counts[j][frame] + 1)
+				}
+			}
+			if score > bestScore {
+				best, bestScore = time, score
+			}
+		}
+		for j, track := range tracks {
+			if frame, _ := track.frameAt(best); frame >= 0 {
+				counts[j][frame]++
+			}
+		}
+		steps = append(steps, gifStep{best, end - start})
+	}
+	return steps
 }
 
 // gifDelay 取第 i 帧延时（1/100 秒），缺省 10，且不小于 2 以防部分解码器加速。

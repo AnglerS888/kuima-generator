@@ -1722,6 +1722,7 @@
     addSetFmt(addFmt);
     saveInk();
     generate(null, { silent: true });
+    addGenerate({ silent: true });
   });
   try {
     const saved = JSON.parse(localStorage.getItem(STYLE_CACHE_KEY) || 'null');
