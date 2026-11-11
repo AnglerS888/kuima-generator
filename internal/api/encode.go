@@ -97,6 +97,7 @@ func renderOptions(req *encodeReq, logo *imagex.ImageRef, badge image.Image) qrc
 		LogoFrames: imagex.FramesOf(logo),
 		LogoDelays: imagex.DelaysOf(logo),
 		Badge:      badge,
+		FillBadge:  req.FillBadge,
 		Style:      req.Style,
 		ColorMode:  req.Color,
 		GhostLevel: req.Ghost,
@@ -109,6 +110,7 @@ func svgOptions(req *encodeReq, logo *imagex.ImageRef, badgeHref string) qrcode.
 	return qrcode.SVGOptions{
 		CenterHref: imagex.DataURIOf(logo),
 		BadgeHref:  badgeHref,
+		FillBadge:  req.FillBadge,
 		Style:      req.Style,
 		ColorMode:  req.Color,
 		GhostLevel: req.Ghost,

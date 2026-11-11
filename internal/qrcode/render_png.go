@@ -46,6 +46,7 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	}
 	style := ParseStyle(opt.Style)
 	colorMode := ParseColorMode(opt.ColorMode)
+	grid := badgeFilledGrid(info, opt.FillBadge && (opt.Badge == nil || ghostActive(colorMode)))
 	if ghostActive(colorMode) {
 		// 隐形配色：墨色由底色推出来（只压几个色阶），前景色不参与
 		fg = ghostInk(bg, opt.GhostLevel)
@@ -68,7 +69,7 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	switch style {
 	case StyleHand:
 		// 手绘：整枚码按「墨线」重画（含手绘定位环），坐标逐点换算到设备像素。
-		for i, pass := range handStrokes(info.Grid) {
+		for i, pass := range handStrokes(grid) {
 			pts := make([]inkPt, len(pass.Pts))
 			for k, p := range pass.Pts {
 				x, y := toDev(p.X, p.Y)
@@ -80,22 +81,22 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 			r.inkStroke(pts)
 		}
 	case StyleDot:
-		drawDotStyle(r, info.Grid, toDev, unit, ink)
+		drawDotStyle(r, grid, toDev, unit, ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleBlock:
-		drawBlockStyle(r, info.Grid, toDev, unit, ink)
+		drawBlockStyle(r, grid, toDev, unit, ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleLine:
-		drawLineStyle(r, info.Grid, toDev, unit, float64(ss), ink)
+		drawLineStyle(r, grid, toDev, unit, float64(ss), ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleClassic:
 		if colored {
-			drawRunsInk(r, info.Grid, toDev, unit, ink)
+			drawRunsInk(r, grid, toDev, unit, ink)
 			drawRings(r, toDev, unit, rings)
 			break
 		}
 		// 经典：等宽胶囊 + 三组定位环（与微信原生输出逐字节一致）
-		for _, run := range gridRuns(info.Grid) {
+		for _, run := range gridRuns(grid) {
 			x1, y1 := cellPos(run.Row, run.Col1)
 			x2, y2 := cellPos(run.Row, run.Col2)
 			dx1, dy1 := toDev(x1, y1)

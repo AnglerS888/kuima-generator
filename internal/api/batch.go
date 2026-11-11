@@ -40,6 +40,7 @@ type batchRequest struct {
 	Logo      string  `json:"logo"`
 	LogoRatio float64 `json:"logoRatio"`
 	Badge     string  `json:"badge"`
+	FillBadge bool    `json:"fillBadge"`
 	Style     string  `json:"style"`
 	Color     string  `json:"color"`
 	Ghost     int     `json:"ghost"`
@@ -67,6 +68,7 @@ type batchItem struct {
 	Logo      string  `json:"logo"`
 	LogoRatio float64 `json:"logoRatio"`
 	Badge     string  `json:"badge"`
+	FillBadge *bool   `json:"fillBadge"` // nil 继承公共参数，false 可显式关闭
 	Style     string  `json:"style"`
 	Color     string  `json:"color"`
 	Ghost     int     `json:"ghost"`
@@ -212,6 +214,7 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 		Logo:      body.Logo,
 		LogoRatio: body.LogoRatio,
 		Badge:     body.Badge,
+		FillBadge: body.FillBadge,
 		Style:     body.Style,
 		Color:     body.Color,
 		Ghost:     body.Ghost,
@@ -243,6 +246,9 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 	}
 	if item.Badge != "" {
 		req.Badge = item.Badge
+	}
+	if item.FillBadge != nil {
+		req.FillBadge = *item.FillBadge
 	}
 	if item.Style != "" {
 		req.Style = item.Style

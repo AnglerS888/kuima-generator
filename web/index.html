@@ -749,6 +749,15 @@
                 <span class="text-dim" style="font-size:.74rem">（原生 SVG 里那个微信小程序图标，位图同样会画）</span>
               </label>
             </div>
+            <div class="mt-2" id="fillBadgeBlock" hidden>
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="fillBadge">
+                <label class="custom-control-label" for="fillBadge">
+                  填补徽标空位
+                  <span class="text-dim" style="font-size:.74rem">（用同风格码点填补徽标空位）</span>
+                </label>
+              </div>
+            </div>
 
             <div class="wm-block mt-3" id="wmBlock" hidden>
               <div class="custom-control custom-switch">
@@ -1007,6 +1016,15 @@
               <input type="checkbox" class="custom-control-input" id="addBadge" checked>
               <label class="custom-control-label" for="addBadge">显示角落徽标</label>
             </div>
+            <div class="mb-2" id="addFillBadgeBlock" hidden>
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="addFillBadge">
+                <label class="custom-control-label" for="addFillBadge">
+                  填补徽标空位
+                  <span class="text-dim" style="font-size:.74rem">（用同风格码点填补徽标空位）</span>
+                </label>
+              </div>
+            </div>
 
             <div class="d-flex flex-wrap align-items-center">
               <button class="btn btn-brand mr-2" id="addGen" type="button">生成太阳码</button>
@@ -1118,6 +1136,7 @@
                 <tr><td><code>logo</code></td><td>string</td><td>否</td><td>中心 logo：<code>data:image/png;base64,...</code> / http(s) URL / 裸 base64 / 服务器本地路径。传 <b>GIF 动图</b>且 format=gif 时，逐帧替换中心图，得到动图。</td></tr>
                 <tr><td><code>logoRatio</code></td><td>float</td><td>否</td><td>logo 半径缩放，默认 1（半径 108/600）。&gt;1.12 开始压到数据格，靠纠错兜底。</td></tr>
                 <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL。</td></tr>
+                <tr><td><code>fillBadge</code></td><td>boolean</td><td>否</td><td>隐藏徽标时，用同风格码点填补右下角空位，默认 <code>false</code>。配合 <code>badge: "none"</code> 使用；显示徽标时忽略。</td></tr>
                 <tr><td><code>style</code></td><td>string</td><td>否</td><td>笔画风格（只决定形状）：<code>classic</code>（默认，等宽胶囊）/ <code>hand</code>（手绘）/ <code>dot</code>（圆点）/ <code>block</code>（方块）/ <code>line</code>（线描：细环＋中心点）。</td></tr>
                 <tr><td><code>color</code></td><td>string</td><td>否</td><td>配色（只决定墨色，可与任意笔画风格组合）：<code>solid</code>（默认，用 <code>fg</code>）/ <code>rainbow</code>（色环：按半径渐变）/ <code>random</code>（彩虹：每一笔随机一色）/ <code>ghost</code>（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 <code>fg</code>。</td></tr>
                 <tr><td><code>ghost</code></td><td>int</td><td>否</td><td>隐形深度：墨色比底色深几级，2~40，默认 6。越小越隐形、越难扫（2~4 基本看不见但只有程序能解，8 以上手机更容易扫）。仅 <code>color=ghost</code> 时生效。</td></tr>
@@ -1214,7 +1233,7 @@
                 <tr><td><code>text</code></td><td>必填，内容；记得 URL 编码（<code>https%3A%2F%2F...</code>）。</td></tr>
                 <tr><td><code>format</code> / <code>size</code> / <code>margin</code></td><td>同 POST。做 &lt;img&gt; 时最常用 <code>format=png&amp;size=400</code>。</td></tr>
                 <tr><td><code>fg</code> / <code>bg</code> / <code>level</code> / <code>version</code> / <code>mask</code></td><td>同 POST。</td></tr>
-                <tr><td><code>logo</code> / <code>logoRatio</code> / <code>badge</code></td><td>同 POST；query 里的 logo 建议用 http(s) URL 或已编码的 data URL。</td></tr>
+                <tr><td><code>logo</code> / <code>logoRatio</code> / <code>badge</code> / <code>fillBadge</code></td><td>同 POST；query 里的 logo 建议用 http(s) URL 或已编码的 data URL。<code>fillBadge=true</code> 填补隐藏徽标后的空位。</td></tr>
               </tbody>
             </table>
           </div>
@@ -1812,6 +1831,7 @@
       logo: logoDataURL,
       logoRatio: parseFloat($('#logoRatio').value) || 1,
       badge: $('#badgeOn').checked ? '' : 'none',
+      fillBadge: !$('#badgeOn').checked && $('#fillBadge').checked,
       style: inkStyle,
       color: inkColor,
       ghost: inkGhost
@@ -1968,11 +1988,13 @@
       '-m' + (lastMeta ? lastMeta.mask : '0') + '.' + lastFormat;
     saveImage(lastImageURL || previewURL, lastBlob, name);
   };
-  ['size', 'margin', 'level', 'version', 'fg', 'bg', 'badgeOn',
+  $('#fillBadgeBlock').hidden = $('#badgeOn').checked;
+  ['size', 'margin', 'level', 'version', 'fg', 'bg', 'badgeOn', 'fillBadge',
     'wmOn', 'wmText', 'wmSize', 'wmColor', 'wmOpacity', 'wmPosition'].forEach(id => {
     const el = $('#' + id);
     if (!el) return;
     el.addEventListener('change', () => {
+      if (id === 'badgeOn') $('#fillBadgeBlock').hidden = el.checked;
       if (id === 'wmOn') {
         const on = $('#wmOn').checked;
         // 关掉开关只收起面板，按钮仍保留，方便下次展开继续配置
@@ -2357,6 +2379,7 @@
           logo: addLogoURL,
           logoRatio: parseFloat($('#addLogoRatio').value) || 1,
           badge: $('#addBadge').checked ? '' : 'none',
+          fillBadge: !$('#addBadge').checked && $('#addFillBadge').checked,
           style: inkStyle,
           color: inkColor,
           ghost: inkGhost
@@ -2438,7 +2461,11 @@
   $('#addGen').onclick = () => addGenerate({});
   addURLEl.addEventListener('keydown', e => { if (e.key === 'Enter') addGenerate({}); });
   addURLEl.addEventListener('change', () => addGenerate({ silent: true }));
-  ['addSize', 'addLevel', 'addBadge'].forEach(id => $('#' + id).addEventListener('change', () => addGenerate({ silent: true })));
+  $('#addFillBadgeBlock').hidden = $('#addBadge').checked;
+  ['addSize', 'addLevel', 'addBadge', 'addFillBadge'].forEach(id => $('#' + id).addEventListener('change', () => {
+    if (id === 'addBadge') $('#addFillBadgeBlock').hidden = $('#addBadge').checked;
+    addGenerate({ silent: true });
+  }));
   $('#addLogoRatio').addEventListener('input', e => { $('#addRatioVal').textContent = e.target.value; });
   $('#addLogoRatio').addEventListener('change', () => addGenerate({ silent: true }));
 

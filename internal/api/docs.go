@@ -146,8 +146,8 @@ func apiMarkdown(baseURL string, now time.Time) string {
 	w("      ]}'\n```\n\n")
 	w("请求体示例（行尾 `//` 是字段说明）：\n\n")
 	w("```jsonc\n%s\n```\n\n", jsoncAlign(batchReqExample))
-	w("**顶层是公共参数**（`format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `level` / `version` / `mask` / `badge`），\n")
-	w("`items` 里每条只给 `text`；单条也可以用 `format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `badge` 逐条覆盖顶层值。\n\n")
+	w("**顶层是公共参数**（`format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `level` / `version` / `mask` / `badge` / `fillBadge`），\n")
+	w("`items` 里每条只给 `text`；单条也可以用 `format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `badge` / `fillBadge` 逐条覆盖顶层值。\n\n")
 	w("**逐条独立**：第 3 条失败不影响前 2 条 —— 每条都有自己的 `ok` / `error`。\n")
 	w("**逐条计费**：额度按**实际成功且非示例/重复内容**的条数扣（响应里的 `charged` 给出数字），失败的条目不扣。\n")
 	w("响应统一是 JSON（`format` 只决定图片怎么出），`format=json` 时同时给 `svg` 与 `pngBase64`。\n\n")
@@ -220,6 +220,7 @@ func apiMarkdown(baseURL string, now time.Time) string {
 	w("| `version` | `auto` `0` `1` `2` | 码格版本；`auto` 取最小可容纳 |\n")
 	w("| `mask` | `-1` 或 `0`~`31` | `-1` 自动按评分选最优 |\n")
 	w("| `badge` | `default` `native` `none` 或图片地址 | 角落徽标 |\n")
+	w("| `fillBadge` | `true` / `false`（默认） | 隐藏徽标时用同风格码点填补右下角空位；显示徽标时忽略 |\n")
 	w("| `fg` / `bg` | `#rrggbb` | 前景 / 背景色 |\n\n")
 
 	w("### 容量参考\n\n")

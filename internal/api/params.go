@@ -32,10 +32,11 @@ type encodeReq struct {
 	BG        string  `json:"bg"`
 	Logo      string  `json:"logo"` // data URL / http(s) URL / 裸 base64 / 本地路径
 	LogoRatio float64 `json:"logoRatio"`
-	Badge     string  `json:"badge"` // default | none | URL
-	Style     string  `json:"style"` // classic | hand | dot | block | line | rainbow（笔画风格）
-	Color     string  `json:"color"` // solid | rainbow | ghost（配色）
-	Ghost     int     `json:"ghost"` // 隐形配色的深度：墨色比底色深几级（2~40）
+	Badge     string  `json:"badge"`     // default | none | URL
+	FillBadge bool    `json:"fillBadge"` // 隐藏徽标时填补空位
+	Style     string  `json:"style"`     // classic | hand | dot | block | line | rainbow（笔画风格）
+	Color     string  `json:"color"`     // solid | rainbow | ghost（配色）
+	Ghost     int     `json:"ghost"`     // 隐形配色的深度：墨色比底色深几级（2~40）
 
 	// 水印（可选）。是否生效由后台开关 + 权限模式决定，优先级见 resolveWatermark。
 	Watermark         *bool  `json:"watermark"`
@@ -214,6 +215,9 @@ func fillFromValues(req *encodeReq, v map[string][]string) {
 	req.LogoRatio = atofOr(get("logoRatio", "logoRatio"), 0)
 	if s := get("badge"); s != "" {
 		req.Badge = s
+	}
+	if b, ok := parseBoolLoose(get("fillBadge")); ok {
+		req.FillBadge = b
 	}
 	if s := get("style", "renderStyle"); s != "" {
 		req.Style = s
