@@ -1579,6 +1579,9 @@
   let lastMeta = null;
   let lastFormat = 'png';
   let previewURL = '';
+  // 服务端给的临时真实图片地址（/api/code/…）。手机端下载与长按保存都靠它，
+  // blob: 在微信内置浏览器 / iOS Safari 里既不能下载也没有长按保存菜单。
+  let lastImageURL = '';
   const genFlow = createFlow();
 
   const fmtButtons = $$('#fmtGroup [data-fmt]');
@@ -1861,6 +1864,7 @@
     if (!req.text) {
       lastBlob = null;
       if (previewURL) { URL.revokeObjectURL(previewURL); previewURL = ''; }
+      lastImageURL = '';
       $('#thumb').innerHTML = '<span>结果图</span>';
       $('#btnPng').disabled = true;
       $('#genState').textContent = '';
@@ -1902,7 +1906,14 @@
       previewURL = URL.createObjectURL(blob);
       lastBlob = blob;
       lastFormat = blobExt(blob, req.format);
-      $('#thumb').innerHTML = '<img alt="生成的太阳码" src="' + previewURL + '">';
+      // 优先用服务端的真实图片地址：手机端点下载、长按存相册都要求 http(s) 图片
+      lastImageURL = resp.headers.get('X-WXCode-Image') || '';
+      $('#thumb').innerHTML = '<img alt="生成的太阳码" src="' + (lastImageURL || previewURL) + '">';
+      const thumbImg = $('#thumb').querySelector('img');
+      if (thumbImg && lastImageURL) {
+        // 地址有 30 分钟有效期：过期就静默退回 blob，不至于显示成破图
+        thumbImg.onerror = () => { thumbImg.onerror = null; lastImageURL = ''; thumbImg.src = previewURL; };
+      }
       $('#btnPng').disabled = false;
 
       const h = resp.headers;
@@ -1930,7 +1941,7 @@
       ]);
       $('#thumbHint').textContent = (logoAnimated && lastFormat === 'gif')
         ? 'GIF 动图：中间 logo 与码图一起播放'
-        : '预览为等比缩放，下载得到原尺寸';
+        : '预览为等比缩放，下载得到原尺寸' + (isMobileUA() ? ' · 长按图片也可保存' : '');
       $('#genState').textContent = '';
       if (!opts.silent) toast('生成成功 · v' + lastMeta.version + '/' + lastMeta.level + ' · ' + ms + 'ms');
       return lastBlob;
@@ -1938,6 +1949,7 @@
       if (isStale(ticket, e)) return null;
       lastBlob = null;
       if (previewURL) { URL.revokeObjectURL(previewURL); previewURL = ''; }
+      lastImageURL = '';
       $('#thumb').innerHTML = '<span>结果图</span>';
       $('#btnPng').disabled = true;
       $('#genState').textContent = '';
@@ -1952,12 +1964,9 @@
   $('#btnGen').onclick = () => generate(null, {});
   $('#btnPng').onclick = () => {
     if (!lastBlob) return generate(null, {});
-    const a = document.createElement('a');
     const name = 'wxcode-v' + (lastMeta ? lastMeta.version : '0') + (lastMeta ? lastMeta.level : '') +
       '-m' + (lastMeta ? lastMeta.mask : '0') + '.' + lastFormat;
-    a.href = previewURL;
-    a.download = name;
-    a.click();
+    saveImage(lastImageURL || previewURL, lastBlob, name);
   };
   ['size', 'margin', 'level', 'version', 'fg', 'bg', 'badgeOn',
     'wmOn', 'wmText', 'wmSize', 'wmColor', 'wmOpacity', 'wmPosition'].forEach(id => {
@@ -2137,6 +2146,59 @@
     });
   }
 
+  // 手机 / 微信内置浏览器：这两类环境都会忽略 <a download>，
+  // blob: 图片也没有「保存图片」长按菜单，所以下载逻辑要分环境走。
+  function isMobileUA() {
+    return /Android|iPhone|iPad|iPod|HarmonyOS|Mobile|MicroMessenger/i.test(navigator.userAgent);
+  }
+
+  function inWeChat() {
+    return /MicroMessenger/i.test(navigator.userAgent);
+  }
+
+  function isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+ 伪装成 Mac
+  }
+
+  // 保存图片：
+  //   1) 能系统分享（iOS 15+/安卓 Chrome 等）就先弹分享面板，里面可直接「存储图像」；
+  //   2) 微信内置浏览器与 iOS Safari 都不认 a[download]（微信是彻底无效，
+  //      iOS 是存进「文件」而不是相册），所以打开真实图片地址让用户长按存相册；
+  //   3) 其余环境（桌面、安卓浏览器）用 a[download]，一步到位。
+  async function saveImage(src, blob, name) {
+    if (!src) return;
+    let file = null;
+    try {
+      if (blob) file = new File([blob], name, { type: blob.type || 'image/png' });
+    } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.share) {
+      let can = false;
+      try { can = navigator.canShare({ files: [file] }); } catch (e) { can = false; }
+      if (can) {
+        try {
+          await navigator.share({ files: [file], title: name });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // 用户主动取消，不算失败
+        }
+      }
+    }
+    if (inWeChat() || isIOS()) {
+      const win = window.open(src, '_blank');
+      if (!win) location.href = src; // 弹窗被拦时退化成当前页打开
+      toast('长按打开的图片即可保存到相册');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   function flashCopied(btn, hint) {
     const old = btn.textContent;
     btn.textContent = '已复制';
@@ -2183,6 +2245,7 @@
   let addLogoURL = '';
   let addBlob = null;
   let addPreviewURL = '';
+  let addImageURL = ''; // 同 lastImageURL：手机端保存要靠真实 http 图片地址
   let addMeta = null;
   let addFormat = 'png';
   const addDecodeFlow = createFlow();
@@ -2271,6 +2334,7 @@
     if (!link) {
       addBlob = null;
       if (addPreviewURL) { URL.revokeObjectURL(addPreviewURL); addPreviewURL = ''; }
+      addImageURL = '';
       $('#addThumb').innerHTML = '<span>生成结果</span>';
       $('#addStats').innerHTML = '';
       $('#addHint').textContent = '上传好友二维码后自动生成';
@@ -2321,7 +2385,14 @@
       addPreviewURL = URL.createObjectURL(blob);
       addBlob = blob;
       addFormat = blobExt(blob, addFmt);
-      $('#addThumb').innerHTML = '<img alt="好友太阳码" src="' + addPreviewURL + '">';
+      addImageURL = resp.headers.get('X-WXCode-Image') || '';
+      $('#addThumb').innerHTML = '<img alt="好友太阳码" src="' + (addImageURL || addPreviewURL) + '">';
+      const addThumbImg = $('#addThumb').querySelector('img');
+      if (addThumbImg && addImageURL) {
+        addThumbImg.onerror = () => {
+          addThumbImg.onerror = null; addImageURL = ''; addThumbImg.src = addPreviewURL;
+        };
+      }
       addDlBtn.disabled = false;
       const h = resp.headers;
       addMeta = {
@@ -2345,13 +2416,15 @@
           (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
       ]);
       $('#addState').textContent = '';
-      $('#addHint').textContent = '预览为等比缩放，下载得到原尺寸';
+      $('#addHint').textContent = '预览为等比缩放，下载得到原尺寸' +
+        (isMobileUA() ? ' · 长按图片也可保存' : '');
       if (!opts.silent) toast('生成成功 · v' + addMeta.version + '/' + addMeta.level + ' · ' + ms + 'ms');
       return addBlob;
     } catch (e) {
       if (isStale(ticket, e)) return null;
       addBlob = null;
       if (addPreviewURL) { URL.revokeObjectURL(addPreviewURL); addPreviewURL = ''; }
+      addImageURL = '';
       $('#addThumb').innerHTML = '<span>生成结果</span>';
       $('#addState').textContent = '';
       renderStats($('#addStats'), []);
@@ -2408,11 +2481,9 @@
   };
   $('#addDl').onclick = () => {
     if (!addBlob || !addPreviewURL) return;
-    const a = document.createElement('a');
-    a.href = addPreviewURL;
-    a.download = 'wxcode-addfriend-v' + (addMeta ? addMeta.version : '0') +
+    const name = 'wxcode-addfriend-v' + (addMeta ? addMeta.version : '0') +
       (addMeta ? addMeta.level : '') + '.' + addFormat;
-    a.click();
+    saveImage(addImageURL || addPreviewURL, addBlob, name);
   };
 
   /* ================= 接口浏览器（Swagger 风格） ================= */

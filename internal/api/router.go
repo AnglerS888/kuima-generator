@@ -46,6 +46,10 @@ func NewRouter() http.Handler {
 	// 不套 ProtectAPI：一个页面会同时拉若干缩略图，占限速额度会把正常用户限掉。
 	mux.HandleFunc("GET /api/preset-logos", handlePresetLogos)
 	mux.HandleFunc("GET /api/preset-logos/{id}", handlePresetLogoImage)
+	// 生成结果的临时图片地址：手机端「点下载」「长按保存」都要求真实 http 图片地址，
+	// blob: / data: 在微信内置浏览器和 iOS Safari 里都存不下来。
+	// 不套 ProtectAPI：一次生成会伴随多次取图（预览、长按、重复打开），不该吃限速额度。
+	mux.HandleFunc("GET /api/code/{name}", handleCodeAsset)
 	mux.HandleFunc("/api/health", handleHealth)
 
 	// 生成/解析都吃 CPU，套上限速 + 并发保护；withAuth 解析会话/Key

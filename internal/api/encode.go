@@ -133,6 +133,23 @@ func setCodeHeaders(w http.ResponseWriter, info *qrcode.EncodeInfo) {
 			"X-WXCode-Mode,X-WXCode-Codewords,X-WXCode-ECCodewords,X-WXCode-DataCodewords")
 }
 
+// publishCodeImage 把本次生成的图片登记成临时地址，并在响应头里告知前端。
+//
+// 前端拿 X-WXCode-Image 当 <img src>，手机端才有点下载 / 长按保存；
+// 缓存满了或单张过大时不给头，前端自然退回 blob。
+func publishCodeImage(w http.ResponseWriter, info *qrcode.EncodeInfo, body []byte, ctype, ext string) {
+	id := publishImage(body, ctype, ext, "wxcode-"+itext(info)+"."+ext)
+	if id == "" {
+		return
+	}
+	w.Header().Set("X-WXCode-Id", id)
+	w.Header().Set("X-WXCode-Image", "/api/code/"+id+"."+ext)
+	w.Header().Set("Access-Control-Expose-Headers",
+		"X-WXCode-Version,X-WXCode-Level,X-WXCode-Mask,X-WXCode-Typebits,"+
+			"X-WXCode-Mode,X-WXCode-Codewords,X-WXCode-ECCodewords,X-WXCode-DataCodewords,"+
+			"X-WXCode-Id,X-WXCode-Image")
+}
+
 // mediaInfo 返回该 format 对应的 Content-Type 与文件后缀。
 func mediaInfo(format string) (ctype, ext string) {
 	switch format {
@@ -186,6 +203,7 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 		// SVG 是可主动执行的文档。即使未来新增图片来源，也不允许它在直接打开时运行脚本。
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; sandbox")
 		w.Header().Set("Cache-Control", "no-store")
+		publishCodeImage(w, info, []byte(svg), "image/svg+xml; charset=utf-8", "svg")
 		io.WriteString(w, svg)
 		return info, len(svg), true
 
@@ -220,6 +238,7 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 		w.Header().Set("Content-Type", ctype)
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Disposition", `inline; filename="wxcode-`+itext(info)+`.`+ext+`"`)
+		publishCodeImage(w, info, body, ctype, ext)
 		w.Write(body)
 		return info, len(body), true
 	}
