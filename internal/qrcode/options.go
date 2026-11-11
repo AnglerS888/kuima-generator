@@ -36,6 +36,8 @@ func DefaultEncodeConfig() EncodeConfig {
 type SVGOptions struct {
 	// BadgeHref 是角落小图标：""/"default" 用原生默认 URL，"none"/"off" 则不输出该 <image>。
 	BadgeHref string
+	// FillBadge 用同风格模块填补隐藏徽标后的空位；显示徽标时忽略。
+	FillBadge bool
 	// CenterHref 是中心 logo（data URI 或 URL），非空则追加圆形裁剪的 <image>。
 	CenterHref string
 	// Watermark 非空时在 SVG 末尾追加 <text> 水印（由浏览器用系统字体渲染）。
@@ -57,6 +59,7 @@ type RenderOptions struct {
 	Logo      image.Image // 中心 logo，可为 nil
 	LogoRatio float64     // logo 半径相对默认 108/600 的缩放，默认 1
 	Badge     image.Image // 345° 楔形区的小图标，可为 nil
+	FillBadge bool        // 隐藏徽标时填补空位，默认 false
 	// Style 是笔画风格，见 ParseStyle；空值等同 classic。
 	Style string
 	// ColorMode 是配色模式，见 ParseColorMode；空值等同 solid（用前景色）。
@@ -68,6 +71,9 @@ type RenderOptions struct {
 	// 为空时按静态 Logo 处理。
 	LogoFrames []image.Image
 	LogoDelays []int
+	// BadgeFrames/BadgeDelays 与中心 logo 使用同一时间轴；隐形配色下忽略。
+	BadgeFrames []image.Image
+	BadgeDelays []int
 
 	// Watermark 非空时在最终图像上叠加文字水印（PNG/JPEG/GIF 位图与 SVG 均支持）。
 	Watermark *watermark.Config

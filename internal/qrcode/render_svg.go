@@ -25,6 +25,7 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 		"xmlns=\"http://www.w3.org/2000/svg\"  xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n")
 	style := ParseStyle(opt.Style)
 	colorMode := ParseColorMode(opt.ColorMode)
+	grid := badgeFilledGrid(info, opt.FillBadge && (badge == "none" || badge == "off" || ghostActive(colorMode)))
 	ink := runInk(colorMode)    // 每笔画一色：彩虹 / 色环
 	rings := ringInk(colorMode) // 定位环的取色
 	hand := style == StyleHand
@@ -51,19 +52,19 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 	}
 	switch {
 	case hand:
-		writeHandSVG(&b, info.Grid, opt.ColorMode, ghost)
+		writeHandSVG(&b, grid, opt.ColorMode, ghost)
 	case style == StyleDot:
-		writeSVGCells(&b, info.Grid, ink, svgCircle)
+		writeSVGCells(&b, grid, ink, svgCircle)
 		writeSVGRings(&b, rings)
 	case style == StyleBlock:
-		writeSVGCells(&b, info.Grid, ink, svgBox)
+		writeSVGCells(&b, grid, ink, svgBox)
 		writeSVGRings(&b, rings)
 	case style == StyleLine:
-		writeSVGCells(&b, info.Grid, ink, svgHollow)
+		writeSVGCells(&b, grid, ink, svgHollow)
 		writeSVGRings(&b, rings)
 	case ink != nil || rings != nil:
 		// 彩色（彩虹风格 / 色环配色）：形状同经典，只是逐笔上色
-		writeSVGRunsInk(&b, info.Grid, ink)
+		writeSVGRunsInk(&b, grid, ink)
 		writeSVGRings(&b, rings)
 	default:
 		// 经典：与微信原生输出逐字节一致
@@ -76,7 +77,7 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 					fmt6(c[0]), fmt6(c[1]), fmt6(ring.k*float64(wxSize)), ring.color)
 			}
 		}
-		for _, run := range gridRuns(info.Grid) {
+		for _, run := range gridRuns(grid) {
 			x1, y1 := cellPos(run.Row, run.Col1)
 			x2, y2 := cellPos(run.Row, run.Col2)
 			fmt.Fprintf(&b, "<circle cx=\"%s\" cy=\"%s\" r=\"%s\" fill=\"black\"/>\n", fmt6(x1), fmt6(y1), fmt6(wxCap))
@@ -109,7 +110,7 @@ const badgeInkFilter = "<defs><filter id=\"wxbadgeink\" x=\"-12%\" y=\"-12%\" wi
 // 位置是一致的；区别只是矢量图里一条笔画只能有一个笔宽，这里取该笔画的均值。
 func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost color.RGBA) {
 	b.WriteString("<g fill=\"none\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
-	for idx, pass := range handStrokes(g) {
+	for _, pass := range handStrokes(g) {
 		if len(pass.Pts) < 2 {
 			continue
 		}
@@ -134,7 +135,7 @@ func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost co
 		if ghost.A != 0 {
 			stroke = " stroke=\"" + svgHex(ghost) + "\""
 		} else if randomActive(colorMode) || gradientActive(colorMode) {
-			c := handInk(colorMode, idx, pass)
+			c := handInk(colorMode, pass)
 			stroke = " stroke=\"" + svgHex(c) + "\""
 		}
 		fmt.Fprintf(b, "\"%s stroke-width=\"%s\"/>\n", stroke, fmt6(sum/float64(hi-lo)))

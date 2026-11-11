@@ -54,12 +54,12 @@ func apiMarkdown(baseURL string, now time.Time) string {
 	w("| 成功 | 图片接口返回二进制，JSON 接口返回对象 |\n")
 	w("| 失败 | 统一 `{\"error\":\"原因\"}`，配合 4xx/5xx 状态码 |\n")
 	w("| 状态码 | `400` 参数/图片不合法 · `403` 目标地址属内网被拒 · `404` 路径不存在 · `413` 请求体过大 · `429` 请求过于频繁 · `503` 服务繁忙 |\n")
-	w("| 请求体 | JSON %dMB · multipart %dMB（logo 上限更大时会自动放宽） |\n",
+	w("| 请求体 | JSON 基础上限 %dMB · multipart 基础上限 %dMB（按 logo 上限与徽标上传所需空间自动放宽，包含 base64 开销） |\n",
 		imagex.MaxJSONBody>>20, imagex.MaxUploadBody>>20)
 	w("| 请求 ID | 响应头 `X-Request-ID` 标识本次请求，服务端日志里用同一个 ID；报障时把它一起提供即可定位 |\n")
 	w("| 上传大小 | 解析图片 **%dMB / %dMB**、logo **%dMB / %dMB**（匿名 / 登录，后台可配） |\n",
 		st.AnonImageKB>>10, st.UserImageKB>>10, st.AnonLogoKB>>10, st.UserLogoKB>>10)
-	w("| 图片尺寸 | 单边 ≤ %d px，总像素 ≤ %d 万；GIF 最多取 %d 帧 |\n",
+	w("| 图片尺寸 | 单边 ≤ %d px，总像素 ≤ %d 万；GIF 最多支持 %d 帧 |\n",
 		imagex.MaxImageSide, netutil.MaxImagePixels/10000, netutil.MaxGIFFrames)
 	w("| 内容长度 | `text` ≤ %d 字节（太阳码本身也只能装几十字节） |\n", netutil.MaxTextLen)
 	w("| 限速 | 单 IP %d 次/分钟，超限返回 429 并带 `Retry-After` |\n", netutil.RateLimitPerMinute)
@@ -146,8 +146,8 @@ func apiMarkdown(baseURL string, now time.Time) string {
 	w("      ]}'\n```\n\n")
 	w("请求体示例（行尾 `//` 是字段说明）：\n\n")
 	w("```jsonc\n%s\n```\n\n", jsoncAlign(batchReqExample))
-	w("**顶层是公共参数**（`format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `level` / `version` / `mask` / `badge`），\n")
-	w("`items` 里每条只给 `text`；单条也可以用 `format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `badge` 逐条覆盖顶层值。\n\n")
+	w("**顶层是公共参数**（`format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `level` / `version` / `mask` / `badge` / `fillBadge`），\n")
+	w("`items` 里每条只给 `text`；单条也可以用 `format` / `size` / `margin` / `fg` / `bg` / `logo` / `logoRatio` / `badge` / `fillBadge` 逐条覆盖顶层值。\n\n")
 	w("**逐条独立**：第 3 条失败不影响前 2 条 —— 每条都有自己的 `ok` / `error`。\n")
 	w("**逐条计费**：额度按**实际成功且非示例/重复内容**的条数扣（响应里的 `charged` 给出数字），失败的条目不扣。\n")
 	w("响应统一是 JSON（`format` 只决定图片怎么出），`format=json` 时同时给 `svg` 与 `pngBase64`。\n\n")
@@ -215,11 +215,12 @@ func apiMarkdown(baseURL string, now time.Time) string {
 
 	w("---\n\n## 九、参数速查\n\n")
 	w("| 参数 | 取值 | 说明 |\n|---|---|---|\n")
-	w("| `format` | `png` `jpg` `svg` `gif` `json` | 输出格式；`gif` + 动图 logo = 循环动图，最多 20 帧 |\n")
+	w("| `format` | `png` `jpg` `svg` `gif` `json` | 输出格式；`gif` + 动图 logo / 徽标 = 循环动图，最多合成 20 帧（超出按完整周期抽帧） |\n")
 	w("| `level` | `L` `M` `Q` `H` | 最低纠错等级，容量够时自动升级 |\n")
 	w("| `version` | `auto` `0` `1` `2` | 码格版本；`auto` 取最小可容纳 |\n")
 	w("| `mask` | `-1` 或 `0`~`31` | `-1` 自动按评分选最优 |\n")
-	w("| `badge` | `default` `native` `none` 或图片地址 | 角落徽标 |\n")
+	w("| `badge` | `default` `native` `none` 或图片地址 / data URL / base64 | 角落徽标；支持 GIF，format=gif 时保留动画 |\n")
+	w("| `fillBadge` | `true` / `false`（默认） | 隐藏徽标时用同风格码点填补右下角空位；显示徽标时忽略 |\n")
 	w("| `fg` / `bg` | `#rrggbb` | 前景 / 背景色 |\n\n")
 
 	w("### 容量参考\n\n")

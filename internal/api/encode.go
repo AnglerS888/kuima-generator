@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"net/http"
 	"strconv"
@@ -24,25 +23,27 @@ import (
 
 // runtimeMeta 是生成结果的摘要，供 JSON 输出与前端展示。
 type runtimeMeta struct {
-	Text         string `json:"text"`
-	Format       string `json:"format"`
-	Version      int    `json:"version"`
-	Level        string `json:"level"`
-	LevelIndex   int    `json:"levelIndex"`
-	Mask         int    `json:"mask"`
-	Typebits     int    `json:"typebits"`
-	Mode         string `json:"mode"`
-	Transformed  string `json:"transformed,omitempty"`
-	Codewords    int    `json:"codewords"`
-	ECCodewords  int    `json:"ecCodewords"`
-	Size         int    `json:"size,omitempty"`
-	Style        string `json:"style,omitempty"`
-	Color        string `json:"color,omitempty"`
-	Ghost        int    `json:"ghost,omitempty"`
-	SVG          string `json:"svg,omitempty"`
-	PNGBase64    string `json:"pngBase64,omitempty"`
-	LogoAnimated bool   `json:"logoAnimated,omitempty"`
-	LogoFrames   int    `json:"logoFrames,omitempty"`
+	Text          string `json:"text"`
+	Format        string `json:"format"`
+	Version       int    `json:"version"`
+	Level         string `json:"level"`
+	LevelIndex    int    `json:"levelIndex"`
+	Mask          int    `json:"mask"`
+	Typebits      int    `json:"typebits"`
+	Mode          string `json:"mode"`
+	Transformed   string `json:"transformed,omitempty"`
+	Codewords     int    `json:"codewords"`
+	ECCodewords   int    `json:"ecCodewords"`
+	Size          int    `json:"size,omitempty"`
+	Style         string `json:"style,omitempty"`
+	Color         string `json:"color,omitempty"`
+	Ghost         int    `json:"ghost,omitempty"`
+	SVG           string `json:"svg,omitempty"`
+	PNGBase64     string `json:"pngBase64,omitempty"`
+	LogoAnimated  bool   `json:"logoAnimated,omitempty"`
+	LogoFrames    int    `json:"logoFrames,omitempty"`
+	BadgeAnimated bool   `json:"badgeAnimated,omitempty"`
+	BadgeFrames   int    `json:"badgeFrames,omitempty"`
 }
 
 // isSiteSelfURL 判断内容是不是「本站地址」。
@@ -85,22 +86,25 @@ func metaOf(info *qrcode.EncodeInfo, format string) runtimeMeta {
 }
 
 // renderOptions 把请求参数转成位图渲染选项。
-func renderOptions(req *encodeReq, logo *imagex.ImageRef, badge image.Image) qrcode.RenderOptions {
+func renderOptions(req *encodeReq, logo, badge *imagex.ImageRef) qrcode.RenderOptions {
 	fg, bg := req.colors()
 	return qrcode.RenderOptions{
-		Size:       req.Size,
-		Margin:     req.Margin,
-		Fg:         fg,
-		Bg:         bg,
-		Logo:       imagex.ImageOf(logo),
-		LogoRatio:  req.LogoRatio,
-		LogoFrames: imagex.FramesOf(logo),
-		LogoDelays: imagex.DelaysOf(logo),
-		Badge:      badge,
-		Style:      req.Style,
-		ColorMode:  req.Color,
-		GhostLevel: req.Ghost,
-		Watermark:  req.wm,
+		Size:        req.Size,
+		Margin:      req.Margin,
+		Fg:          fg,
+		Bg:          bg,
+		Logo:        imagex.ImageOf(logo),
+		LogoRatio:   req.LogoRatio,
+		LogoFrames:  imagex.FramesOf(logo),
+		LogoDelays:  imagex.DelaysOf(logo),
+		Badge:       imagex.ImageOf(badge),
+		BadgeFrames: imagex.FramesOf(badge),
+		BadgeDelays: imagex.DelaysOf(badge),
+		FillBadge:   req.FillBadge,
+		Style:       req.Style,
+		ColorMode:   req.Color,
+		GhostLevel:  req.Ghost,
+		Watermark:   req.wm,
 	}
 }
 
@@ -109,6 +113,7 @@ func svgOptions(req *encodeReq, logo *imagex.ImageRef, badgeHref string) qrcode.
 	return qrcode.SVGOptions{
 		CenterHref: imagex.DataURIOf(logo),
 		BadgeHref:  badgeHref,
+		FillBadge:  req.FillBadge,
 		Style:      req.Style,
 		ColorMode:  req.Color,
 		GhostLevel: req.Ghost,
@@ -189,7 +194,7 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 		httpx.WriteErr(w, StatusOf(err), err)
 		return nil, 0, false
 	}
-	badgeImg, badgeHref, err := imagex.ResolveBadge(req.Badge)
+	badgeImg, badgeHref, err := imagex.ResolveBadgeRef(req.Badge)
 	if err != nil {
 		httpx.WriteErr(w, StatusOf(err), err)
 		return nil, 0, false
@@ -222,6 +227,10 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 			meta.LogoAnimated = true
 			meta.LogoFrames = frames
 		}
+		if animated, frames := imagex.AnimInfo(badgeImg); animated {
+			meta.BadgeAnimated = true
+			meta.BadgeFrames = frames
+		}
 		meta.SVG = qrcode.RenderSVG(info, svgOptions(req, logo, badgeHref))
 		meta.PNGBase64 = base64.StdEncoding.EncodeToString(pngBytes)
 		httpx.WriteJSON(w, http.StatusOK, meta)
@@ -245,7 +254,7 @@ func serveCode(w http.ResponseWriter, r *http.Request, req *encodeReq) (info *qr
 }
 
 // renderBytes 按 format 渲染 png / jpg / gif。
-func renderBytes(info *qrcode.EncodeInfo, req *encodeReq, logo *imagex.ImageRef, badge image.Image) ([]byte, error) {
+func renderBytes(info *qrcode.EncodeInfo, req *encodeReq, logo, badge *imagex.ImageRef) ([]byte, error) {
 	opt := renderOptions(req, logo, badge)
 	switch req.Format {
 	case "jpg", "jpeg":

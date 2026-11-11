@@ -46,6 +46,7 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	}
 	style := ParseStyle(opt.Style)
 	colorMode := ParseColorMode(opt.ColorMode)
+	grid := badgeFilledGrid(info, opt.FillBadge && (opt.Badge == nil || ghostActive(colorMode)))
 	if ghostActive(colorMode) {
 		// 隐形配色：墨色由底色推出来（只压几个色阶），前景色不参与
 		fg = ghostInk(bg, opt.GhostLevel)
@@ -68,34 +69,34 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	switch style {
 	case StyleHand:
 		// 手绘：整枚码按「墨线」重画（含手绘定位环），坐标逐点换算到设备像素。
-		for i, pass := range handStrokes(info.Grid) {
+		for _, pass := range handStrokes(grid) {
 			pts := make([]inkPt, len(pass.Pts))
 			for k, p := range pass.Pts {
 				x, y := toDev(p.X, p.Y)
 				pts[k] = inkPt{X: x, Y: y, W: p.W * unit}
 			}
 			if colored {
-				takeInk(r, handInk(colorMode, i, pass))
+				takeInk(r, handInk(colorMode, pass))
 			}
 			r.inkStroke(pts)
 		}
 	case StyleDot:
-		drawDotStyle(r, info.Grid, toDev, unit, ink)
+		drawDotStyle(r, grid, toDev, unit, ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleBlock:
-		drawBlockStyle(r, info.Grid, toDev, unit, ink)
+		drawBlockStyle(r, grid, toDev, unit, ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleLine:
-		drawLineStyle(r, info.Grid, toDev, unit, float64(ss), ink)
+		drawLineStyle(r, grid, toDev, unit, float64(ss), ink)
 		drawRings(r, toDev, unit, rings)
 	case StyleClassic:
 		if colored {
-			drawRunsInk(r, info.Grid, toDev, unit, ink)
+			drawRunsInk(r, grid, toDev, unit, ink)
 			drawRings(r, toDev, unit, rings)
 			break
 		}
 		// 经典：等宽胶囊 + 三组定位环（与微信原生输出逐字节一致）
-		for _, run := range gridRuns(info.Grid) {
+		for _, run := range gridRuns(grid) {
 			x1, y1 := cellPos(run.Row, run.Col1)
 			x2, y2 := cellPos(run.Row, run.Col2)
 			dx1, dy1 := toDev(x1, y1)
@@ -137,18 +138,29 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	}
 
 	// 隐形模式下不画徽标：一个彩色小图标会把"这是码"直接说出来
-	if opt.Badge != nil && !ghostActive(colorMode) {
+	drawBadge(img, opt, opt.Badge)
+	return img
+}
+
+// drawBadge 同时用于静态输出和 GIF 每帧，保持尺寸、白边与手绘效果一致。
+func drawBadge(img *image.RGBA, opt RenderOptions, badge image.Image) {
+	if badge != nil && !ghostActive(ParseColorMode(opt.ColorMode)) {
+		size := opt.Size
+		if size <= 0 {
+			size = 600
+		}
+		scale := float64(size) / 600.0
+		margin := max(0, opt.Margin)
 		bx := (419.593964*scale + float64(margin))
 		bs := (float64(wxSize) + float64(wxSize)*10.0) * scale
-		if style == StyleHand {
+		if ParseStyle(opt.Style) == StyleHand {
 			// 手绘风格下徽标也要"手贴"上去：略微歪、边缘不齐，否则一块干净的
 			// 数字图标贴在满纸手绘笔迹里会很扎眼。
-			drawImageInk(img, opt.Badge, bx, bx, bs, bs)
+			drawImageInk(img, badge, bx, bx, bs, bs)
 		} else {
-			drawImageBox(img, opt.Badge, bx, bx, bs, bs)
+			drawImageBox(img, badge, bx, bx, bs, bs)
 		}
 	}
-	return img
 }
 
 // compositeColor 是彩色风格的合成：覆盖度照旧，颜色取这一小片像素的平均墨色。

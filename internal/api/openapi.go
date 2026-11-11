@@ -374,6 +374,7 @@ const encodeReqExample = `{
   "logo": "",                       // 中心 logo：data URL / http(s) / 裸 base64，空=不画
   "logoRatio": 1,                   // logo 半径缩放 0.2~3，1 表示 108/600
   "badge": "default",               // 角落徽标：default / native / none / 图片地址
+  "fillBadge": false,               // 隐藏徽标时填补右下角空位，配合 badge=none 使用
   "style": "classic",               // 笔画风格：classic / hand / dot / block / line
   "color": "solid",                 // 配色：solid（用 fg）/ rainbow（色环）/ random（彩虹）/ ghost（隐形）
   "ghost": 6                        // 隐形深度：墨色比底色深几级（color=ghost 时生效）
@@ -497,6 +498,8 @@ var encodeJSONFields = []apiFieldDoc{
 	apiField("pngBase64", "string", "PNG 的 base64（不含 data: 前缀），配合 data:image/png;base64, 可预览"),
 	apiField("logoAnimated", "boolean", "仅 logo 是动图时出现，固定 true"),
 	apiField("logoFrames", "integer", "仅 logo 是动图时出现：动图帧数"),
+	apiField("badgeAnimated", "boolean", "仅徽标是动图时出现，固定 true"),
+	apiField("badgeFrames", "integer", "仅徽标是动图时出现：动图帧数"),
 }
 
 // decodeFields 是解析结果的字段说明，覆盖太阳码 / 普通二维码两种码型的并集。
@@ -569,7 +572,8 @@ func encodeBodyFields() []apiBodyDoc {
 		apiBody("mask", "json", "integer", "掩码：-1 自动在 0~31 里按评分选最优，也可固定 0~31", false, -1),
 		apiBody("logo", "json", "string", "中心 logo：data URL / http(s) 地址 / 裸 base64 / 空字符串不画；multipart 时也可以传 logo 文件。服务器本地路径需开 ALLOW_LOCAL_IMAGE。GIF 动图 + format=gif 会逐帧保留", false, ""),
 		apiBody("logoRatio", "json", "number", fmt.Sprintf("logo 半径缩放，%.1f~%.1f，默认 1（半径 = 108/600 边长）", netutil.MinLogoRatio, netutil.MaxLogoRatio), false, 1),
-		apiBody("badge", "json", "string", "角落徽标：default（内嵌图，SVG 写成 data URI、离线可用）/ native（写回远程 URL）/ none（不画）/ 自定义图片地址", false, "default"),
+		apiBody("badge", "json", "string", "角落徽标：default（内嵌图，SVG 写成 data URI、离线可用）/ native（写回远程 URL）/ none（不画）/ 自定义图片地址、data URL 或裸 base64；支持 PNG/JPG/GIF，format=gif 时保留动画，可与中心 logo 同时播放；最多合成 20 帧，超出按完整周期抽帧", false, "default"),
+		apiBody("fillBadge", "json", "boolean", "隐藏徽标时用同风格码点填补右下角空位，默认 false；配合 badge=none 使用，显示徽标时忽略", false, false),
 		apiBody("style", "json", "string", "笔画风格（只决定形状）：classic（默认，等宽胶囊，与微信原生一致）/ hand（手绘：笔线抖动、粗细不匀、徽标也手贴）/ dot（圆点）/ block（方块）/ line（线描：细环+中心点）。装饰性抖动都控制在半格内，不影响扫码", false, "classic", qrcode.StyleNames...),
 		apiBody("color", "json", "string", "配色（只决定墨色，可与任意笔画风格组合）：solid（默认，用 fg）/ rainbow（色环：按半径渐变，内圈青→外圈品红）/ random（彩虹：每一笔随机一色）/ ghost（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 fg", false, "solid", qrcode.ColorNames...),
 		apiBody("ghost", "json", "integer", fmt.Sprintf("隐形配色的深度：墨色比底色深几级（2~40，默认 %d）。越小越隐形、越难扫：2~4 基本看不见但只有程序能解，8 以上手机更容易扫出来", qrcode.GhostDefault), false, qrcode.GhostDefault),
@@ -672,7 +676,7 @@ func apiOperations() []apiOperationDoc {
 		{
 			ID: "encodeBatch", Method: "POST", Path: "/api/encode/batch", Tag: "生成",
 			Summary: "批量生成太阳码", Auth: "optional", Content: "json",
-			Description: "一次最多 50 条，逐条独立、逐条计费。顶层参数作用于全部条目，items[].text 为每条内容，\nitems 里也可以用 format / size / margin / fg / bg / logo / logoRatio / badge / style / color / ghost 覆盖顶层值。",
+			Description: "一次最多 50 条，逐条独立、逐条计费。顶层参数作用于全部条目，items[].text 为每条内容，\nitems 里也可以用 format / size / margin / fg / bg / logo / logoRatio / badge / fillBadge / style / color / ghost 覆盖顶层值。",
 			Body: []apiBodyDoc{
 				apiBody("items", "json", "array", "内容数组，每项至少要有 text，可逐条覆盖公共参数", true, []any{
 					map[string]any{"text": "https://a.example.com/1"},
@@ -689,6 +693,7 @@ func apiOperations() []apiOperationDoc {
 				apiBody("logo", "json", "string", "公共 logo：data URL / http(s) / 裸 base64", false, ""),
 				apiBody("logoRatio", "json", "number", "logo 半径缩放 0.2~3", false, 1),
 				apiBody("badge", "json", "string", "角落徽标 default / native / none / 图片地址", false, "default"),
+				apiBody("fillBadge", "json", "boolean", "隐藏徽标时填补空位，默认 false；单条可显式传 false 覆盖公共参数", false, false),
 				apiBody("style", "json", "string", "公共笔画风格，默认 classic；可选 dot / block / line / hand", false, "classic", qrcode.StyleNames...),
 				apiBody("color", "json", "string", "公共配色：solid（用 fg）/ rainbow（色环）/ random（彩虹）/ ghost（隐形）", false, "solid", qrcode.ColorNames...),
 				apiBody("ghost", "json", "integer", "隐形深度 2~40，默认 6", false, qrcode.GhostDefault),
