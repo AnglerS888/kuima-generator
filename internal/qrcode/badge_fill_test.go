@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -48,6 +49,53 @@ func TestBadgeFillPreservesCodewords(t *testing.T) {
 				t.Fatalf("v%d mask %d changed sampled codewords", version, mask)
 			}
 		}
+	}
+}
+
+func TestBadgeFillHandRandomKeepsOtherColors(t *testing.T) {
+	info, err := Encode("https://example.com/", DefaultEncodeConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	opt := RenderOptions{Size: 600, Style: "hand", ColorMode: "random"}
+	before := RenderImage(info, opt)
+	opt.FillBadge = true
+	after := RenderImage(info, opt)
+	changed := 0
+	for y := 0; y < 600; y++ {
+		for x := 0; x < 600; x++ {
+			if before.At(x, y) != after.At(x, y) {
+				changed++
+				if x < 400 || y < 400 {
+					t.Fatalf("fill changed a pixel outside the badge corner at (%d,%d)", x, y)
+				}
+			}
+		}
+	}
+	if changed == 0 {
+		t.Fatal("fill did not change the image")
+	}
+
+	svgOpt := SVGOptions{BadgeHref: "none", Style: "hand", ColorMode: "random"}
+	plainSVG := RenderSVG(info, svgOpt)
+	svgOpt.FillBadge = true
+	filledSVG := RenderSVG(info, svgOpt)
+	paths := regexp.MustCompile(`<path d="([^"]+)" stroke="([^"]+)"`)
+	colors := make(map[string]string)
+	for _, match := range paths.FindAllStringSubmatch(plainSVG, -1) {
+		colors[match[1]] = match[2]
+	}
+	shared := 0
+	for _, match := range paths.FindAllStringSubmatch(filledSVG, -1) {
+		if color, ok := colors[match[1]]; ok {
+			shared++
+			if color != match[2] {
+				t.Fatalf("unchanged SVG path changed color from %s to %s", color, match[2])
+			}
+		}
+	}
+	if shared < 100 {
+		t.Fatalf("only %d SVG paths were compared", shared)
 	}
 }
 

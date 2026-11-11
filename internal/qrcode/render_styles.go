@@ -61,12 +61,13 @@ func ringInk(colorMode string) func(i int) color.RGBA {
 	return nil
 }
 
-// handInk 给手绘的一条笔画取色：色环按它所在的半径，彩虹按笔画序号散列。
-func handInk(colorMode string, i int, pass inkPass) color.RGBA {
+// handInk 给手绘的一条笔画取色：色环按半径，彩虹按笔画坐标散列。
+func handInk(colorMode string, pass inkPass) color.RGBA {
 	switch {
 	case randomActive(colorMode):
 		p := pass.Pts[0]
-		return randomInk(inkSeed(i, int(p.X*4), int(p.Y*4)))
+		end := pass.Pts[len(pass.Pts)-1]
+		return randomInk(inkSeed(int(p.X*4), int(p.Y*4), int(end.X*4)+int(end.Y*4)*4096))
 	case gradientActive(colorMode):
 		mid := pass.Pts[len(pass.Pts)/2]
 		return rainbowRingInk(quantT(inkTForRadius(math.Hypot(mid.X-wxCenter, mid.Y-wxCenter))))

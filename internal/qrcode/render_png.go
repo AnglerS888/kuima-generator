@@ -69,14 +69,14 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	switch style {
 	case StyleHand:
 		// 手绘：整枚码按「墨线」重画（含手绘定位环），坐标逐点换算到设备像素。
-		for i, pass := range handStrokes(grid) {
+		for _, pass := range handStrokes(grid) {
 			pts := make([]inkPt, len(pass.Pts))
 			for k, p := range pass.Pts {
 				x, y := toDev(p.X, p.Y)
 				pts[k] = inkPt{X: x, Y: y, W: p.W * unit}
 			}
 			if colored {
-				takeInk(r, handInk(colorMode, i, pass))
+				takeInk(r, handInk(colorMode, pass))
 			}
 			r.inkStroke(pts)
 		}

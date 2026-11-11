@@ -110,7 +110,7 @@ const badgeInkFilter = "<defs><filter id=\"wxbadgeink\" x=\"-12%\" y=\"-12%\" wi
 // 位置是一致的；区别只是矢量图里一条笔画只能有一个笔宽，这里取该笔画的均值。
 func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost color.RGBA) {
 	b.WriteString("<g fill=\"none\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
-	for idx, pass := range handStrokes(g) {
+	for _, pass := range handStrokes(g) {
 		if len(pass.Pts) < 2 {
 			continue
 		}
@@ -135,7 +135,7 @@ func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost co
 		if ghost.A != 0 {
 			stroke = " stroke=\"" + svgHex(ghost) + "\""
 		} else if randomActive(colorMode) || gradientActive(colorMode) {
-			c := handInk(colorMode, idx, pass)
+			c := handInk(colorMode, pass)
 			stroke = " stroke=\"" + svgHex(c) + "\""
 		}
 		fmt.Fprintf(b, "\"%s stroke-width=\"%s\"/>\n", stroke, fmt6(sum/float64(hi-lo)))
