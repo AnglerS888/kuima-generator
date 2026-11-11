@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="theme-color" content="#2f6bff">
 <title>{{SITE_NAME}} · 葵花码在线生成与解析</title>
-<meta name="description" content="在线生成和解析微信葵花码（太阳码），支持 PNG、JPG、SVG、GIF，支持中心 logo、整屏截图与手机拍照识别。">
+<meta name="description" content="在线生成和解析微信葵花码（太阳码），支持 PNG、JPG、SVG、GIF，支持中心 logo、自定义徽标、GIF 动图、整屏截图与手机拍照识别。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{SITE_NAME}} · 葵花码在线生成与解析">
 <meta property="og:description" content="免费生成、解析微信葵花码（太阳码），支持 PNG、JPG、SVG、GIF 与普通二维码识别。">
@@ -219,6 +219,9 @@
   .logo-pick{display:flex;align-items:center;gap:.6rem}
   .logo-thumb{width:42px;height:42px;object-fit:cover;border-radius:.55rem;border:1px solid var(--line);
     background:#fff;flex:0 0 auto}
+  .badge-thumb{object-fit:contain}
+  .badge-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem}
+  .badge-hint{font-size:.72rem;overflow-wrap:anywhere}
 
   /* 预设 LOGO：管理员在后台维护，这里横排一行缩略图，点一下就套用 */
   .preset-strip{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.55rem}
@@ -681,7 +684,7 @@
                   <button type="button" data-fmt="svg" aria-pressed="false">SVG</button>
                   <button type="button" data-fmt="gif" aria-pressed="false">GIF</button>
                 </div>
-                <div class="text-dim mt-1" style="font-size:.72rem" id="fmtHint">GIF 动图 logo 只能输出 GIF</div>
+                <div class="text-dim mt-1" style="font-size:.72rem" id="fmtHint">中心 logo 或徽标使用动图时，自动切换为 GIF 输出</div>
               </div>
             </div>
 
@@ -748,6 +751,22 @@
                 显示角落徽标
                 <span class="text-dim" style="font-size:.74rem">（原生 SVG 里那个微信小程序图标，位图同样会画）</span>
               </label>
+            </div>
+            <div class="mt-2 mb-2" id="badgePicker">
+              <label class="field" for="badgeFile">徽标图片（PNG / JPG / GIF）</label>
+              <div class="logo-pick">
+                <img id="badgeThumb" class="logo-thumb badge-thumb d-none" alt="自定义徽标预览">
+                <div class="badge-actions">
+                  <input type="file" id="badgeFile" class="d-none" accept="image/png,image/jpeg,image/gif" aria-describedby="badgeHint">
+                  <button class="btn btn-ghost btn-sm" id="btnPickBadge" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                    </svg>选择图片
+                  </button>
+                  <button class="link-btn d-none" id="btnBadgeReset" type="button">恢复默认</button>
+                </div>
+              </div>
+              <div class="text-dim badge-hint mt-1" id="badgeHint" role="status">当前使用默认徽标；支持 PNG / JPG / GIF，最大 8MB；动图会自动切换为 GIF 输出</div>
             </div>
             <div class="mt-2" id="fillBadgeBlock" hidden>
               <div class="custom-control custom-switch">
@@ -966,7 +985,7 @@
             <div class="panel-head">
               <h6 class="panel-title">生成好友太阳码</h6>
             </div>
-            <p class="panel-sub">参数与「生成」栏一致：格式、中心 logo（支持 GIF 动图）、角落徽标。</p>
+            <p class="panel-sub">参数与「生成」栏一致：格式、中心 logo 与角落徽标（均支持 GIF 动图）。</p>
 
             <div class="form-row">
               <div class="col-12 col-md-6 mb-2">
@@ -1015,6 +1034,18 @@
             <div class="custom-control custom-switch mb-2">
               <input type="checkbox" class="custom-control-input" id="addBadge" checked>
               <label class="custom-control-label" for="addBadge">显示角落徽标</label>
+            </div>
+            <div class="mb-2" id="addBadgePicker">
+              <label class="field" for="addBadgeFile">徽标图片（PNG / JPG / GIF）</label>
+              <div class="logo-pick">
+                <img id="addBadgeThumb" class="logo-thumb badge-thumb d-none" alt="自定义徽标预览">
+                <div class="badge-actions">
+                  <input type="file" id="addBadgeFile" class="d-none" accept="image/png,image/jpeg,image/gif" aria-describedby="addBadgeHint">
+                  <button class="btn btn-ghost btn-sm" id="addPickBadge" type="button">选择图片</button>
+                  <button class="link-btn d-none" id="addBadgeReset" type="button">恢复默认</button>
+                </div>
+              </div>
+              <div class="text-dim badge-hint mt-1" id="addBadgeHint" role="status">当前使用默认徽标；支持 PNG / JPG / GIF，最大 8MB；动图会自动切换为 GIF 输出</div>
             </div>
             <div class="mb-2" id="addFillBadgeBlock" hidden>
               <div class="custom-control custom-switch">
@@ -1135,7 +1166,7 @@
                 <tr><td><code>mask</code></td><td>int</td><td>否</td><td><code>-1</code>（默认）自动在 32 种掩码里按评分取最优；0~31 可固定。</td></tr>
                 <tr><td><code>logo</code></td><td>string</td><td>否</td><td>中心 logo：<code>data:image/png;base64,...</code> / http(s) URL / 裸 base64 / 服务器本地路径。传 <b>GIF 动图</b>且 format=gif 时，逐帧替换中心图，得到动图。</td></tr>
                 <tr><td><code>logoRatio</code></td><td>float</td><td>否</td><td>logo 半径缩放，默认 1（半径 108/600）。&gt;1.12 开始压到数据格，靠纠错兜底。</td></tr>
-                <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL。</td></tr>
+                <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL、data URL 或裸 base64。前端上传图片时使用 data URL，支持 PNG / JPG / GIF；<code>format=gif</code> 保留动画，可与中心 logo 同时播放，最多合成 20 帧，超出按完整周期抽帧。</td></tr>
                 <tr><td><code>fillBadge</code></td><td>boolean</td><td>否</td><td>隐藏徽标时，用同风格码点填补右下角空位，默认 <code>false</code>。配合 <code>badge: "none"</code> 使用；显示徽标时忽略。</td></tr>
                 <tr><td><code>style</code></td><td>string</td><td>否</td><td>笔画风格（只决定形状）：<code>classic</code>（默认，等宽胶囊）/ <code>hand</code>（手绘）/ <code>dot</code>（圆点）/ <code>block</code>（方块）/ <code>line</code>（线描：细环＋中心点）。</td></tr>
                 <tr><td><code>color</code></td><td>string</td><td>否</td><td>配色（只决定墨色，可与任意笔画风格组合）：<code>solid</code>（默认，用 <code>fg</code>）/ <code>rainbow</code>（色环：按半径渐变）/ <code>random</code>（彩虹：每一笔随机一色）/ <code>ghost</code>（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 <code>fg</code>。</td></tr>
@@ -1173,6 +1204,7 @@
                 <tr><td><code>size</code></td><td>位图边长（像素），与请求一致。</td></tr>
                 <tr><td><code>svg</code> / <code>pngBase64</code></td><td>矢量 SVG 文本与 PNG 的 base64（不含 <code>data:</code> 前缀，一次拿全，前端好预览/下载）。</td></tr>
                 <tr><td><code>logoAnimated</code> / <code>logoFrames</code></td><td>仅 logo 是动图时出现：是否动图、共几帧。</td></tr>
+                <tr><td><code>badgeAnimated</code> / <code>badgeFrames</code></td><td>仅徽标是动图时出现：是否动图、共几帧。</td></tr>
               </tbody>
             </table>
           </div>
@@ -1410,7 +1442,7 @@
             <tbody>
               <tr><td>鉴权</td><td>默认匿名可用；管理员可开启「使用需要登录」。程序调用建议在请求头带 <code>X-API-Key</code>，需登录时网页会携带会话 Cookie。</td></tr>
               <tr><td>错误</td><td>4xx/5xx + <code>{"error":"原因"}</code>，例如容量不足会提示「载荷超出一枚葵花码容量」。</td></tr>
-              <tr><td>上传上限</td><td>图片 8MB（logo）/ 24MB（待解析图片），JSON 16MB。</td></tr>
+              <tr><td>上传上限</td><td>徽标单张 8MB；中心 logo 与待解析图片按后台配置限制。JSON 基础上限 16MB，会为中心 logo、徽标及 base64 开销自动放宽。</td></tr>
               <tr><td>跨域</td><td>图片响应已通过 <code>Access-Control-Expose-Headers</code> 暴露 <code>X-WXCode-*</code>。</td></tr>
             </tbody>
           </table>
@@ -1594,6 +1626,7 @@
   let inkGhost = 6;
   let logoDataURL = '';
   let logoAnimated = false;
+  let badgeAnimated = false;
   let lastBlob = null;
   let lastMeta = null;
   let lastFormat = 'png';
@@ -1604,7 +1637,16 @@
   const genFlow = createFlow();
 
   const fmtButtons = $$('#fmtGroup [data-fmt]');
-  function setFormat(next, lock) {
+  function animationLabel(logo, badge) {
+    return logo && badge ? '中心 logo 和徽标' : logo ? '中心 logo' : badge ? '徽标' : '';
+  }
+  function mainAnimationLabel() {
+    return animationLabel(logoAnimated, badgeAnimated && $('#badgeOn').checked && inkColor !== 'ghost');
+  }
+  function setFormat(next) {
+    const moving = mainAnimationLabel();
+    const lock = !!moving;
+    if (lock) next = 'gif';
     fmt = next;
     fmtButtons.forEach(b => {
       const isGif = b.getAttribute('data-fmt') === 'gif';
@@ -1614,13 +1656,13 @@
       b.disabled = !!lock && !isGif;
     });
     $('#fmtHint').textContent = lock
-      ? '动图 logo 已锁定 GIF 输出，中间 logo 会跟着动'
-      : 'GIF 动图 logo 只能输出 GIF';
+      ? moving + '为动图，已锁定 GIF 输出'
+      : '中心 logo 或徽标使用动图时，自动切换为 GIF 输出';
   }
   fmtButtons.forEach(b => {
     b.addEventListener('click', () => {
       if (b.disabled) return;
-      setFormat(b.getAttribute('data-fmt'), false);
+      setFormat(b.getAttribute('data-fmt'));
       generate(null, { silent: true });
     });
   });
@@ -1676,6 +1718,8 @@
   });
   colorSel.addEventListener('change', () => {
     setColorMode(colorSel.value);
+    setFormat(fmt);
+    addSetFmt(addFmt);
     saveInk();
     generate(null, { silent: true });
   });
@@ -1694,14 +1738,36 @@
   const logoThumb = $('#logoThumb');
   $('#btnPickLogo').onclick = () => logoFile.click();
 
-  // 数 GIF 帧：遍历 Graphic Control Extension (21 F9 04)
+  // 按 GIF 块结构数图像帧，兼容没有 GCE 的 GIF，避免把压缩数据误认成帧。
   function gifFrameCount(buf) {
     const b = new Uint8Array(buf);
-    let n = 0;
-    for (let i = 0; i + 2 < b.length; i++) {
-      if (b[i] === 0x21 && b[i + 1] === 0xF9 && b[i + 2] === 0x04) n++;
+    if (b.length < 13 || String.fromCharCode(...b.slice(0, 6)).match(/^GIF8[79]a$/) === null) return 0;
+    let pos = 13 + ((b[10] & 0x80) ? 3 * (1 << ((b[10] & 7) + 1)) : 0);
+    let frames = 0;
+    function skipBlocks() {
+      while (pos < b.length) {
+        const size = b[pos++];
+        if (!size) return true;
+        pos += size;
+      }
+      return false;
     }
-    return n;
+    while (pos < b.length) {
+      const type = b[pos++];
+      if (type === 0x3b) return frames;
+      if (type === 0x21) {
+        pos++; // 扩展标签，其后均为子块。
+        if (!skipBlocks()) return 0;
+      } else if (type === 0x2c) {
+        if (pos + 9 > b.length) return 0;
+        const packed = b[pos + 8];
+        pos += 9 + ((packed & 0x80) ? 3 * (1 << ((packed & 7) + 1)) : 0);
+        pos++; // LZW minimum code size
+        if (!skipBlocks()) return 0;
+        frames++;
+      } else return 0;
+    }
+    return 0;
   }
 
   /* ---------- 预设 LOGO（管理员在后台维护，两个生成入口共用） ---------- */
@@ -1776,10 +1842,10 @@
       const finish = frames => {
         logoAnimated = isGif && frames > 1;
         if (logoAnimated) {
-          setFormat('gif', true);
+          setFormat('gif');
           $('#logoHint').innerHTML = '<b>' + esc(f.name) + '</b> · 动图 ' + frames + ' 帧，已自动切换为 GIF 输出';
         } else {
-          setFormat(fmt, false);
+          setFormat(fmt);
           $('#logoHint').innerHTML = '<b>' + esc(f.name) + '</b> · ' +
             Math.max(1, Math.round(f.size / 1024)) + 'KB' + (isGif ? '（单帧 GIF）' : '');
         }
@@ -1810,11 +1876,86 @@
     logoThumb.classList.add('d-none');
     $('#btnLogoClear').classList.add('d-none');
     $('#logoHint').textContent = '建议正方形、透明背景；动图会自动保留动画';
-    setFormat(fmt === 'gif' ? 'png' : fmt, false);
+    setFormat(fmt === 'gif' ? 'png' : fmt);
     generate(null, { silent: true });
   };
   $('#logoRatio').addEventListener('input', e => { $('#ratioVal').textContent = e.target.value; });
   $('#logoRatio').addEventListener('change', () => generate(null, { silent: true }));
+
+  // 两个生成入口共用上传逻辑；关闭徽标只隐藏设置，保留已选图片。
+  function mountBadgePicker(ids, onChange) {
+    const file = $('#' + ids.file);
+    const thumb = $('#' + ids.thumb);
+    const reset = $('#' + ids.reset);
+    const hint = $('#' + ids.hint);
+    const defaultHint = hint.textContent;
+    let dataURL = '';
+    let revision = 0;
+    $('#' + ids.pick).onclick = () => file.click();
+    file.addEventListener('change', async () => {
+      const f = file.files[0];
+      file.value = ''; // 同一张图片可以再次选择，包括上次上传失败的情况。
+      if (!f) return;
+      const current = ++revision;
+      try {
+        if (!/^image\/(png|jpeg|gif)$/i.test(f.type) &&
+            !(!f.type && /\.(png|jpe?g|gif)$/i.test(f.name))) {
+          throw new Error('徽标仅支持 PNG / JPG / GIF 图片');
+        }
+        if (f.size > 8 * 1024 * 1024) throw new Error('徽标图片不能超过 8MB');
+        const url = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('徽标图片读取失败，请重新选择'));
+          reader.readAsDataURL(f);
+        });
+        await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = resolve;
+          img.onerror = () => reject(new Error('无法解析徽标图片，请选择有效的 PNG / JPG / GIF'));
+          img.src = url;
+        });
+        const isGif = /gif$/i.test(f.type) || /\.gif$/i.test(f.name);
+        const frames = isGif ? gifFrameCount(await f.arrayBuffer()) : 1;
+        if (isGif && !frames) throw new Error('无法解析 GIF 徽标，请重新选择');
+        if (frames > 120) throw new Error('GIF 徽标最多支持 120 帧');
+        if (current !== revision) return;
+        dataURL = url;
+        thumb.src = url;
+        thumb.classList.remove('d-none');
+        reset.classList.remove('d-none');
+        const animated = frames > 1;
+        hint.textContent = f.name + ' · ' + (animated ? '动图 ' + frames + ' 帧，显示时自动使用 GIF 输出' :
+          Math.max(1, Math.round(f.size / 1024)) + 'KB' + (isGif ? '（单帧 GIF）' : ''));
+        onChange(animated);
+      } catch (e) {
+        if (current === revision) toast(e.message, true);
+      }
+    });
+    reset.onclick = () => {
+      revision++;
+      dataURL = '';
+      file.value = '';
+      thumb.removeAttribute('src');
+      thumb.classList.add('d-none');
+      reset.classList.add('d-none');
+      hint.textContent = defaultHint;
+      onChange(false);
+    };
+    const toggle = $('#' + ids.toggle);
+    const syncVisibility = () => { $('#' + ids.panel).hidden = !toggle.checked; };
+    toggle.addEventListener('change', syncVisibility);
+    syncVisibility();
+    return () => dataURL;
+  }
+  const badgeValue = mountBadgePicker({
+    file: 'badgeFile', thumb: 'badgeThumb', pick: 'btnPickBadge', reset: 'btnBadgeReset',
+    hint: 'badgeHint', toggle: 'badgeOn', panel: 'badgePicker'
+  }, animated => {
+    badgeAnimated = animated;
+    setFormat(fmt);
+    generate(null, { silent: true });
+  });
 
   let wmCanConfig = false, wmDefaultsApplied = false;
 
@@ -1830,7 +1971,7 @@
       bg: $('#bg').value,
       logo: logoDataURL,
       logoRatio: parseFloat($('#logoRatio').value) || 1,
-      badge: $('#badgeOn').checked ? '' : 'none',
+      badge: $('#badgeOn').checked ? badgeValue() : 'none',
       fillBadge: !$('#badgeOn').checked && $('#fillBadge').checked,
       style: inkStyle,
       color: inkColor,
@@ -1959,8 +2100,8 @@
         ['文件', blob.type.replace('image/', '').toUpperCase() + ' · ' +
           (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
       ]);
-      $('#thumbHint').textContent = (logoAnimated && lastFormat === 'gif')
-        ? 'GIF 动图：中间 logo 与码图一起播放'
+      $('#thumbHint').textContent = (mainAnimationLabel() && lastFormat === 'gif')
+        ? 'GIF 动图：' + mainAnimationLabel() + '保留动画，下载后同样播放'
         : '预览为等比缩放，下载得到原尺寸' + (isMobileUA() ? ' · 长按图片也可保存' : '');
       $('#genState').textContent = '';
       if (!opts.silent) toast('生成成功 · v' + lastMeta.version + '/' + lastMeta.level + ' · ' + ms + 'ms');
@@ -1994,7 +2135,10 @@
     const el = $('#' + id);
     if (!el) return;
     el.addEventListener('change', () => {
-      if (id === 'badgeOn') $('#fillBadgeBlock').hidden = el.checked;
+      if (id === 'badgeOn') {
+        $('#fillBadgeBlock').hidden = el.checked;
+        setFormat(fmt);
+      }
       if (id === 'wmOn') {
         const on = $('#wmOn').checked;
         // 关掉开关只收起面板，按钮仍保留，方便下次展开继续配置
@@ -2265,6 +2409,8 @@
   /* ================= 加好友：解析微信二维码 → 生成太阳码 ================= */
   let addFmt = 'png';
   let addLogoURL = '';
+  let addLogoAnimated = false;
+  let addBadgeAnimated = false;
   let addBlob = null;
   let addPreviewURL = '';
   let addImageURL = ''; // 同 lastImageURL：手机端保存要靠真实 http 图片地址
@@ -2278,7 +2424,12 @@
   const addLogoEl = $('#addLogoFile');
   const addDlBtn = $('#addDl');
 
-  function addSetFmt(next, lock) {
+  function addAnimationLabel() {
+    return animationLabel(addLogoAnimated, addBadgeAnimated && $('#addBadge').checked && inkColor !== 'ghost');
+  }
+  function addSetFmt(next) {
+    const lock = !!addAnimationLabel();
+    if (lock) next = 'gif';
     addFmt = next;
     $$('#addFmtGroup [data-fmt]').forEach(b => {
       const isGif = b.getAttribute('data-fmt') === 'gif';
@@ -2291,7 +2442,7 @@
   $$('#addFmtGroup [data-fmt]').forEach(b => {
     b.addEventListener('click', () => {
       if (b.disabled) return;
-      addSetFmt(b.getAttribute('data-fmt'), false);
+      addSetFmt(b.getAttribute('data-fmt'));
       addGenerate({ silent: true });
     });
   });
@@ -2378,7 +2529,7 @@
           level: $('#addLevel').value,
           logo: addLogoURL,
           logoRatio: parseFloat($('#addLogoRatio').value) || 1,
-          badge: $('#addBadge').checked ? '' : 'none',
+          badge: $('#addBadge').checked ? addBadgeValue() : 'none',
           fillBadge: !$('#addBadge').checked && $('#addFillBadge').checked,
           style: inkStyle,
           color: inkColor,
@@ -2439,7 +2590,9 @@
           (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
       ]);
       $('#addState').textContent = '';
-      $('#addHint').textContent = '预览为等比缩放，下载得到原尺寸' +
+      $('#addHint').textContent = (addAnimationLabel() && addFormat === 'gif'
+        ? 'GIF 动图：' + addAnimationLabel() + '保留动画，下载后同样播放'
+        : '预览为等比缩放，下载得到原尺寸') +
         (isMobileUA() ? ' · 长按图片也可保存' : '');
       if (!opts.silent) toast('生成成功 · v' + addMeta.version + '/' + addMeta.level + ' · ' + ms + 'ms');
       return addBlob;
@@ -2459,11 +2612,22 @@
   }
 
   $('#addGen').onclick = () => addGenerate({});
+  const addBadgeValue = mountBadgePicker({
+    file: 'addBadgeFile', thumb: 'addBadgeThumb', pick: 'addPickBadge', reset: 'addBadgeReset',
+    hint: 'addBadgeHint', toggle: 'addBadge', panel: 'addBadgePicker'
+  }, animated => {
+    addBadgeAnimated = animated;
+    addSetFmt(addFmt);
+    addGenerate({ silent: true });
+  });
   addURLEl.addEventListener('keydown', e => { if (e.key === 'Enter') addGenerate({}); });
   addURLEl.addEventListener('change', () => addGenerate({ silent: true }));
   $('#addFillBadgeBlock').hidden = $('#addBadge').checked;
   ['addSize', 'addLevel', 'addBadge', 'addFillBadge'].forEach(id => $('#' + id).addEventListener('change', () => {
-    if (id === 'addBadge') $('#addFillBadgeBlock').hidden = $('#addBadge').checked;
+    if (id === 'addBadge') {
+      $('#addFillBadgeBlock').hidden = $('#addBadge').checked;
+      addSetFmt(addFmt);
+    }
     addGenerate({ silent: true });
   }));
   $('#addLogoRatio').addEventListener('input', e => { $('#addRatioVal').textContent = e.target.value; });
@@ -2480,9 +2644,9 @@
       $('#addLogoThumb').classList.remove('d-none');
       $('#addLogoClear').classList.remove('d-none');
       const done = frames => {
-        const animated = isGif && frames > 1;
-        if (animated) addSetFmt('gif', true);
-        else addSetFmt(addFmt, false);
+        addLogoAnimated = isGif && frames > 1;
+        if (addLogoAnimated) addSetFmt('gif');
+        else addSetFmt(addFmt);
         addGenerate({ silent: true });
       };
       if (isGif) {
@@ -2500,10 +2664,11 @@
   mountPresetPicker($('#addPresetLogo'), $('#addPresetStrip'), addApplyLogo);
   $('#addLogoClear').onclick = () => {
     addLogoURL = '';
+    addLogoAnimated = false;
     addLogoEl.value = '';
     $('#addLogoThumb').classList.add('d-none');
     $('#addLogoClear').classList.add('d-none');
-    addSetFmt(addFmt === 'gif' ? 'png' : addFmt, false);
+    addSetFmt(addFmt === 'gif' ? 'png' : addFmt);
     addGenerate({ silent: true });
   };
   $('#addDl').onclick = () => {
@@ -3360,7 +3525,7 @@
   }
   refreshAccount();
 
-  setFormat('png', false);
+  setFormat('png');
   // 首屏不预先编码：很多访客只看不改，没必要为每次打开页面消耗一次渲染。
   // 输入内容后由用户显式生成（或参数变化时静默刷新）。
   $('#btnPng').disabled = true;

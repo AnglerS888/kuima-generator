@@ -138,18 +138,29 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	}
 
 	// 隐形模式下不画徽标：一个彩色小图标会把"这是码"直接说出来
-	if opt.Badge != nil && !ghostActive(colorMode) {
+	drawBadge(img, opt, opt.Badge)
+	return img
+}
+
+// drawBadge 同时用于静态输出和 GIF 每帧，保持尺寸、白边与手绘效果一致。
+func drawBadge(img *image.RGBA, opt RenderOptions, badge image.Image) {
+	if badge != nil && !ghostActive(ParseColorMode(opt.ColorMode)) {
+		size := opt.Size
+		if size <= 0 {
+			size = 600
+		}
+		scale := float64(size) / 600.0
+		margin := max(0, opt.Margin)
 		bx := (419.593964*scale + float64(margin))
 		bs := (float64(wxSize) + float64(wxSize)*10.0) * scale
-		if style == StyleHand {
+		if ParseStyle(opt.Style) == StyleHand {
 			// 手绘风格下徽标也要"手贴"上去：略微歪、边缘不齐，否则一块干净的
 			// 数字图标贴在满纸手绘笔迹里会很扎眼。
-			drawImageInk(img, opt.Badge, bx, bx, bs, bs)
+			drawImageInk(img, badge, bx, bx, bs, bs)
 		} else {
-			drawImageBox(img, opt.Badge, bx, bx, bs, bs)
+			drawImageBox(img, badge, bx, bx, bs, bs)
 		}
 	}
-	return img
 }
 
 // compositeColor 是彩色风格的合成：覆盖度照旧，颜色取这一小片像素的平均墨色。

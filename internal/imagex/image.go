@@ -196,7 +196,11 @@ func newImageRef(raw []byte, _ string) (*ImageRef, error) {
 		dataURI: "data:" + mimeStr + ";base64," + base64.StdEncoding.EncodeToString(raw),
 	}
 	if format == "gif" {
-		if frames, delays, aerr := decodeGIFAnimation(raw); aerr == nil && len(frames) > 1 {
+		frames, delays, aerr := decodeGIFAnimation(raw)
+		if aerr != nil {
+			return nil, aerr
+		}
+		if len(frames) > 1 {
 			ref.frames = frames
 			ref.delays = delays
 			ref.animated = true
@@ -413,15 +417,21 @@ func badgeDataURI() string {
 //
 // 返回：位图要画的图（nil 表示不画）、SVG 里的 href（"none" = 不画，其余原样写入）。
 func ResolveBadge(spec string) (image.Image, string, error) {
+	ref, href, err := ResolveBadgeRef(spec)
+	return ImageOf(ref), href, err
+}
+
+// ResolveBadgeRef 保留自定义徽标的动画帧与延时，供 GIF 输出逐帧合成。
+func ResolveBadgeRef(spec string) (*ImageRef, string, error) {
 	switch strings.ToLower(strings.TrimSpace(spec)) {
 	case "none", "off", "false", "0":
 		return nil, "none", nil
 	case "native", "remote", "origin":
 		img, err := embeddedBadge()
-		return img, "", err
+		return &ImageRef{img: img}, "", err
 	case "", "default", "on", "true", "1":
 		img, err := embeddedBadge()
-		return img, badgeDataURI(), err
+		return &ImageRef{img: img, dataURI: badgeDataURI()}, badgeDataURI(), err
 	default:
 		ref, err := LoadImageRef(spec, AllowRemoteImage, MaxImageBytes)
 		if err != nil {
@@ -430,7 +440,7 @@ func ResolveBadge(spec string) (image.Image, string, error) {
 		if ref == nil {
 			return nil, "none", nil
 		}
-		return ref.img, ref.dataURI, nil
+		return ref, ref.dataURI, nil
 	}
 }
 

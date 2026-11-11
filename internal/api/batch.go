@@ -316,7 +316,7 @@ func encodeOneBatchItem(r *http.Request, ai *authInfo, body *batchRequest, item 
 		out.Error = err.Error()
 		return out, false
 	}
-	badgeImg, badgeHref, err := imagex.ResolveBadge(req.Badge)
+	badgeImg, badgeHref, err := imagex.ResolveBadgeRef(req.Badge)
 	if err != nil {
 		if consumed {
 			store.RefundQuota(ai.user.ID)

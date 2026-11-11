@@ -137,6 +137,11 @@ func readEncodeReq(r *http.Request, logoMax int64) (*encodeReq, error) {
 	if v := logoMax*2 + (1 << 20); v > bodyLimit {
 		bodyLimit = v
 	}
+	// 中心 logo 与徽标可以同时上传，JSON 内两张图的 base64 都会膨胀。
+	imagesLimit := (logoMax+imagex.MaxImageBytes)*4/3 + (1 << 20)
+	if imagesLimit > bodyLimit {
+		bodyLimit = imagesLimit
+	}
 	if err := httpx.CapRequestBody(r, bodyLimit); err != nil {
 		return nil, err
 	}
@@ -146,6 +151,9 @@ func readEncodeReq(r *http.Request, logoMax int64) (*encodeReq, error) {
 		jsonLimit := int64(imagex.MaxJSONBody)
 		if v := logoMax*2 + (1 << 20); v > jsonLimit {
 			jsonLimit = v
+		}
+		if imagesLimit > jsonLimit {
+			jsonLimit = imagesLimit
 		}
 		body, err := httpx.ReadBody(r.Body, jsonLimit)
 		if err != nil {

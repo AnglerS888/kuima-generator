@@ -71,6 +71,9 @@ type RenderOptions struct {
 	// 为空时按静态 Logo 处理。
 	LogoFrames []image.Image
 	LogoDelays []int
+	// BadgeFrames/BadgeDelays 与中心 logo 使用同一时间轴；隐形配色下忽略。
+	BadgeFrames []image.Image
+	BadgeDelays []int
 
 	// Watermark 非空时在最终图像上叠加文字水印（PNG/JPEG/GIF 位图与 SVG 均支持）。
 	Watermark *watermark.Config
