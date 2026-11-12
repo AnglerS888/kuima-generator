@@ -213,6 +213,8 @@
   .thumb>img,.thumb>canvas{position:absolute;inset:0;width:100%;height:100%;
     object-fit:contain;display:block;animation:pop .22s ease}
   .thumb>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .thumb>img[role="button"]{cursor:zoom-in}
+  .thumb>img[role="button"]:focus-visible{outline:2px solid var(--brand);outline-offset:-3px;border-radius:14px}
   @keyframes pop{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
   .thumb-cap{text-align:center;color:var(--dim);font-size:.74rem;margin:.6rem 0 .9rem}
 
@@ -821,7 +823,7 @@
         <div class="panel h-100">
           <div class="panel-body">
             <div class="thumb" id="thumb"><span>结果图</span></div>
-            <p class="thumb-cap" id="thumbHint">预览为等比缩放，下载得到原尺寸</p>
+            <p class="thumb-cap" id="thumbHint">点击图片可放大，下载得到原尺寸</p>
             <div class="stats" id="encStats"></div>
             <dl class="info-dl" id="encInfo">
               <dt>提示</dt><dd>输入内容后点击「生成」</dd>
@@ -1503,6 +1505,21 @@
     });
   }
 
+  function enableImagePreview(img, fallback) {
+    if (!img) return;
+    img.setAttribute('role', 'button');
+    img.setAttribute('tabindex', '0');
+    img.setAttribute('aria-label', img.alt + '，点击放大');
+    img.setAttribute('aria-haspopup', 'dialog');
+    img.title = '点击放大';
+    const open = () => {
+      img.focus();
+      layer.image(img.currentSrc || img.src, { title: img.alt, fallback: fallback });
+    };
+    img.addEventListener('click', open);
+    onActivate(img, open);
+  }
+
   /* ================= 提示：统一走弹层（不再依赖页面里的灰字） ================= */
   function toast(msg, bad) { layer.msg(msg, { error: !!bad }); }
   // 解码失败常伴随底层报错（png: invalid format / Reed-Solomon ...），
@@ -1912,6 +1929,7 @@
       lastImageURL = resp.headers.get('X-WXCode-Image') || '';
       $('#thumb').innerHTML = '<img alt="生成的太阳码" src="' + (lastImageURL || previewURL) + '">';
       const thumbImg = $('#thumb').querySelector('img');
+      enableImagePreview(thumbImg, previewURL);
       if (thumbImg && lastImageURL) {
         // 地址有 30 分钟有效期：过期就静默退回 blob，不至于显示成破图
         thumbImg.onerror = () => { thumbImg.onerror = null; lastImageURL = ''; thumbImg.src = previewURL; };
@@ -1942,8 +1960,8 @@
           (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
       ]);
       $('#thumbHint').textContent = (logoAnimated && lastFormat === 'gif')
-        ? 'GIF 动图：中间 logo 与码图一起播放'
-        : '预览为等比缩放，下载得到原尺寸' + (isMobileUA() ? ' · 长按图片也可保存' : '');
+        ? '点击图片可放大 · GIF 动图：中间 logo 与码图一起播放'
+        : '点击图片可放大，下载得到原尺寸' + (isMobileUA() ? ' · 长按图片也可保存' : '');
       $('#genState').textContent = '';
       if (!opts.silent) toast('生成成功 · v' + lastMeta.version + '/' + lastMeta.level + ' · ' + ms + 'ms');
       return lastBlob;
@@ -2390,6 +2408,7 @@
       addImageURL = resp.headers.get('X-WXCode-Image') || '';
       $('#addThumb').innerHTML = '<img alt="好友太阳码" src="' + (addImageURL || addPreviewURL) + '">';
       const addThumbImg = $('#addThumb').querySelector('img');
+      enableImagePreview(addThumbImg, addPreviewURL);
       if (addThumbImg && addImageURL) {
         addThumbImg.onerror = () => {
           addThumbImg.onerror = null; addImageURL = ''; addThumbImg.src = addPreviewURL;
@@ -2418,7 +2437,7 @@
           (blob.size / 1024).toFixed(1) + 'KB · ' + ms + 'ms']
       ]);
       $('#addState').textContent = '';
-      $('#addHint').textContent = '预览为等比缩放，下载得到原尺寸' +
+      $('#addHint').textContent = '点击图片可放大，下载得到原尺寸' +
         (isMobileUA() ? ' · 长按图片也可保存' : '');
       if (!opts.silent) toast('生成成功 · v' + addMeta.version + '/' + addMeta.level + ' · ' + ms + 'ms');
       return addBlob;

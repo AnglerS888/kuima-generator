@@ -1,5 +1,5 @@
 /* ============================================================
-   轻量 layer：msg / alert / confirm / prompt
+   轻量 layer：msg / alert / confirm / prompt / view / image
    用来替代 alert() / confirm() / prompt() —— 原生弹窗样式不受控、
    在移动端会阻塞渲染，而且 prompt 在 iOS 上还会被系统接管。
 
@@ -48,6 +48,9 @@
     '.wx-layer-hint{color:var(--l-dim);font-size:.76rem;margin-top:.4rem}',
     /* 长内容查看：加宽 + 可滚动 + 等宽字体，内容可选中复制 */
     '.wx-layer.wide{max-width:560px}',
+    '.wx-layer.image{max-width:860px;max-height:calc(100vh - 2.4rem);overflow:auto}',
+    '.wx-layer-image{display:block;width:100%;height:auto;max-height:calc(100vh - 12rem);',
+    'object-fit:contain;background:var(--l-bg);border-radius:.6rem}',
     '.wx-layer-meta{color:var(--l-dim);font-size:.75rem;margin:0 0 .55rem;display:flex;',
     'flex-wrap:wrap;gap:.2rem .8rem}',
     '.wx-layer-view{max-height:min(58vh,26rem);overflow:auto;border:1px solid var(--l-line);',
@@ -174,6 +177,27 @@
       view.className = 'wx-layer-view';
       view.textContent = opts.view;
       box.appendChild(view);
+    }
+
+    if (opts.image) {
+      box.classList.add('image');
+      var img = document.createElement('img');
+      img.className = 'wx-layer-image';
+      img.alt = opts.title || '图片预览';
+      img.onerror = function () {
+        if (opts.fallback && img.src !== opts.fallback) {
+          img.src = opts.fallback;
+          return;
+        }
+        img.onerror = null;
+        img.hidden = true;
+        var error = document.createElement('div');
+        error.className = 'wx-layer-body';
+        error.textContent = '图片加载失败，请关闭后重新生成';
+        img.parentNode.replaceChild(error, img);
+      };
+      img.src = opts.image;
+      box.appendChild(img);
     }
 
     var input = null;
@@ -337,6 +361,16 @@
         inputType: opts.inputType, danger: false,
         okText: opts.okText || '确定', cancelText: opts.cancelText || '取消',
         prompt: true
+      });
+    },
+
+    // 放大图片，保留原始格式，支持临时地址失效后回退本地预览
+    image: function (src, opts) {
+      opts = opts || {};
+      return show({
+        title: opts.title || '图片预览',
+        image: src, fallback: opts.fallback || '',
+        okText: '关闭', cancelText: null
       });
     },
 
