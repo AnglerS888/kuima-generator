@@ -374,7 +374,7 @@ const encodeReqExample = `{
   "logo": "",                       // 中心 logo：data URL / http(s) / 裸 base64，空=不画
   "logoRatio": 1,                   // logo 半径缩放 0.2~3，1 表示 108/600
   "badge": "default",               // 角落徽标：default / native / none / 图片地址
-  "style": "classic",               // 笔画风格：classic / hand / dot / block / line
+  "style": "classic",               // 笔画风格：classic / hand / scribble / dot / block / line
   "color": "solid",                 // 配色：solid（用 fg）/ rainbow（色环）/ random（彩虹）/ ghost（隐形）
   "ghost": 6                        // 隐形深度：墨色比底色深几级（color=ghost 时生效）
 }`
@@ -570,7 +570,7 @@ func encodeBodyFields() []apiBodyDoc {
 		apiBody("logo", "json", "string", "中心 logo：data URL / http(s) 地址 / 裸 base64 / 空字符串不画；multipart 时也可以传 logo 文件。服务器本地路径需开 ALLOW_LOCAL_IMAGE。GIF 动图 + format=gif 会逐帧保留", false, ""),
 		apiBody("logoRatio", "json", "number", fmt.Sprintf("logo 半径缩放，%.1f~%.1f，默认 1（半径 = 108/600 边长）", netutil.MinLogoRatio, netutil.MaxLogoRatio), false, 1),
 		apiBody("badge", "json", "string", "角落徽标：default（内嵌图，SVG 写成 data URI、离线可用）/ native（写回远程 URL）/ none（不画）/ 自定义图片地址", false, "default"),
-		apiBody("style", "json", "string", "笔画风格（只决定形状）：classic（默认，等宽胶囊，与微信原生一致）/ hand（手绘：笔线抖动、粗细不匀、徽标也手贴）/ dot（圆点）/ block（方块）/ line（线描：细环+中心点）。装饰性抖动都控制在半格内，不影响扫码", false, "classic", qrcode.StyleNames...),
+		apiBody("style", "json", "string", "笔画风格（只决定形状）：classic（默认，等宽胶囊，与微信原生一致）/ hand（手绘：笔线抖动、粗细不匀、徽标也手贴）/ scribble（笔画：一段码点反复涂几道，边缘带毛刺、涂痕里留飞白，最像手绘涂鸦）/ dot（圆点）/ block（方块）/ line（线描：细环+中心点）。装饰性抖动都控制在半格内，不影响扫码", false, "classic", qrcode.StyleNames...),
 		apiBody("color", "json", "string", "配色（只决定墨色，可与任意笔画风格组合）：solid（默认，用 fg）/ rainbow（色环：按半径渐变，内圈青→外圈品红）/ random（彩虹：每一笔随机一色）/ ghost（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 fg", false, "solid", qrcode.ColorNames...),
 		apiBody("ghost", "json", "integer", fmt.Sprintf("隐形配色的深度：墨色比底色深几级（2~40，默认 %d）。越小越隐形、越难扫：2~4 基本看不见但只有程序能解，8 以上手机更容易扫出来", qrcode.GhostDefault), false, qrcode.GhostDefault),
 	}
@@ -689,7 +689,7 @@ func apiOperations() []apiOperationDoc {
 				apiBody("logo", "json", "string", "公共 logo：data URL / http(s) / 裸 base64", false, ""),
 				apiBody("logoRatio", "json", "number", "logo 半径缩放 0.2~3", false, 1),
 				apiBody("badge", "json", "string", "角落徽标 default / native / none / 图片地址", false, "default"),
-				apiBody("style", "json", "string", "公共笔画风格，默认 classic；可选 dot / block / line / hand", false, "classic", qrcode.StyleNames...),
+				apiBody("style", "json", "string", "公共笔画风格，默认 classic；可选 hand / scribble / dot / block / line", false, "classic", qrcode.StyleNames...),
 				apiBody("color", "json", "string", "公共配色：solid（用 fg）/ rainbow（色环）/ random（彩虹）/ ghost（隐形）", false, "solid", qrcode.ColorNames...),
 				apiBody("ghost", "json", "integer", "隐形深度 2~40，默认 6", false, qrcode.GhostDefault),
 			},

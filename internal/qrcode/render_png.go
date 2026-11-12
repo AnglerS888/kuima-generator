@@ -68,17 +68,10 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	switch style {
 	case StyleHand:
 		// 手绘：整枚码按「墨线」重画（含手绘定位环），坐标逐点换算到设备像素。
-		for i, pass := range handStrokes(info.Grid) {
-			pts := make([]inkPt, len(pass.Pts))
-			for k, p := range pass.Pts {
-				x, y := toDev(p.X, p.Y)
-				pts[k] = inkPt{X: x, Y: y, W: p.W * unit}
-			}
-			if colored {
-				takeInk(r, handInk(colorMode, i, pass))
-			}
-			r.inkStroke(pts)
-		}
+		drawInkPasses(r, handStrokes(info.Grid), toDev, unit, colorMode, colored)
+	case StyleScribble:
+		// 笔画：同一套「墨线」路径，只是几何换成反复涂出来的粗糙笔触。
+		drawInkPasses(r, scribbleStrokes(info.Grid), toDev, unit, colorMode, colored)
 	case StyleDot:
 		drawDotStyle(r, info.Grid, toDev, unit, ink)
 		drawRings(r, toDev, unit, rings)
@@ -140,15 +133,38 @@ func renderBase(info *EncodeInfo, opt RenderOptions) *image.RGBA {
 	if opt.Badge != nil && !ghostActive(colorMode) {
 		bx := (419.593964*scale + float64(margin))
 		bs := (float64(wxSize) + float64(wxSize)*10.0) * scale
-		if style == StyleHand {
-			// 手绘风格下徽标也要"手贴"上去：略微歪、边缘不齐，否则一块干净的
-			// 数字图标贴在满纸手绘笔迹里会很扎眼。
+		if inkLineStyle(style) {
+			// 墨线风格（手绘 / 笔画）下徽标也要"手贴"上去：略微歪、边缘不齐，
+			// 否则一块干净的数字图标贴在满纸笔迹里会很扎眼。
 			drawImageInk(img, opt.Badge, bx, bx, bs, bs)
 		} else {
 			drawImageBox(img, opt.Badge, bx, bx, bs, bs)
 		}
 	}
 	return img
+}
+
+// drawInkPasses 把一组墨线笔画铺到光栅上：坐标逐点换算到设备像素，
+// 彩色配色下每一笔先登记自己的笔色；Erase 笔画改成擦白（飞白）。
+func drawInkPasses(r *raster, passes []inkPass, toDev devFn, unit float64, colorMode string, colored bool) {
+	for i, pass := range passes {
+		if len(pass.Pts) == 0 {
+			continue
+		}
+		pts := make([]inkPt, len(pass.Pts))
+		for k, p := range pass.Pts {
+			x, y := toDev(p.X, p.Y)
+			pts[k] = inkPt{X: x, Y: y, W: p.W * unit}
+		}
+		if pass.Erase {
+			r.clearStroke(pts)
+			continue
+		}
+		if colored {
+			takeInk(r, passInk(colorMode, i, pass))
+		}
+		r.inkStroke(pts)
+	}
 }
 
 // compositeColor 是彩色风格的合成：覆盖度照旧，颜色取这一小片像素的平均墨色。

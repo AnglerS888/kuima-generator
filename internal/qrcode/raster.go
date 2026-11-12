@@ -44,40 +44,12 @@ func (r *raster) mark(i int) {
 	}
 }
 
-func (r *raster) fillDisc(cx, cy, rad float64) {
-	if rad <= 0 {
-		return
-	}
-	x0 := int(math.Floor(cx - rad))
-	x1 := int(math.Ceil(cx + rad))
-	y0 := int(math.Floor(cy - rad))
-	y1 := int(math.Ceil(cy + rad))
-	if x0 < 0 {
-		x0 = 0
-	}
-	if y0 < 0 {
-		y0 = 0
-	}
-	if x1 > r.w-1 {
-		x1 = r.w - 1
-	}
-	if y1 > r.h-1 {
-		y1 = r.h - 1
-	}
-	rr := rad * rad
-	for y := y0; y <= y1; y++ {
-		dy := float64(y) + 0.5 - cy
-		row := y * r.w
-		for x := x0; x <= x1; x++ {
-			dx := float64(x) + 0.5 - cx
-			if dx*dx+dy*dy <= rr {
-				r.mark(row + x)
-			}
-		}
-	}
-}
+func (r *raster) fillDisc(cx, cy, rad float64) { r.stampDisc(cx, cy, rad, 1) }
 
-func (r *raster) clearDisc(cx, cy, rad float64) {
+func (r *raster) clearDisc(cx, cy, rad float64) { r.stampDisc(cx, cy, rad, 0) }
+
+// stampDisc 画一个实心圆；val=1 落墨，val=0 擦白（飞白用）。
+func (r *raster) stampDisc(cx, cy, rad float64, val byte) {
 	if rad <= 0 {
 		return
 	}
@@ -104,7 +76,11 @@ func (r *raster) clearDisc(cx, cy, rad float64) {
 		for x := x0; x <= x1; x++ {
 			dx := float64(x) + 0.5 - cx
 			if dx*dx+dy*dy <= rr {
-				r.mask[row+x] = 0
+				if val == 0 {
+					r.mask[row+x] = 0
+				} else {
+					r.mark(row + x)
+				}
 			}
 		}
 	}
@@ -112,12 +88,17 @@ func (r *raster) clearDisc(cx, cy, rad float64) {
 
 // fillCapsule 画一条圆头线段（对应 SVG 的 line + 两端 circle）。
 func (r *raster) fillCapsule(x1, y1, x2, y2, width float64) {
+	r.stampCapsule(x1, y1, x2, y2, width, 1)
+}
+
+// stampCapsule 画一条圆头线段；val=1 落墨，val=0 擦白（飞白用）。
+func (r *raster) stampCapsule(x1, y1, x2, y2, width float64, val byte) {
 	rad := width / 2
 	if rad <= 0 {
 		return
 	}
-	r.fillDisc(x1, y1, rad)
-	r.fillDisc(x2, y2, rad)
+	r.stampDisc(x1, y1, rad, val)
+	r.stampDisc(x2, y2, rad, val)
 	dx := x2 - x1
 	dy := y2 - y1
 	len2 := dx*dx + dy*dy
@@ -161,7 +142,11 @@ func (r *raster) fillCapsule(x1, y1, x2, y2, width float64) {
 			ddx := px - qx
 			ddy := py - qy
 			if ddx*ddx+ddy*ddy <= rr {
-				r.mark(row + x)
+				if val == 0 {
+					r.mask[row+x] = 0
+				} else {
+					r.mark(row + x)
+				}
 			}
 		}
 	}
@@ -181,6 +166,21 @@ func (r *raster) inkStroke(pts []inkPt) {
 	for i := 0; i+1 < len(pts); i++ {
 		a, b := pts[i], pts[i+1]
 		r.fillCapsule(a.X, a.Y, b.X, b.Y, (a.W+b.W)/2)
+	}
+}
+
+// clearStroke 沿点列擦掉一条笔宽可变的笔画（飞白用：把涂上的墨擦出白缝）。
+func (r *raster) clearStroke(pts []inkPt) {
+	switch len(pts) {
+	case 0:
+		return
+	case 1:
+		r.clearDisc(pts[0].X, pts[0].Y, pts[0].W/2)
+		return
+	}
+	for i := 0; i+1 < len(pts); i++ {
+		a, b := pts[i], pts[i+1]
+		r.stampCapsule(a.X, a.Y, b.X, b.Y, (a.W+b.W)/2, 0)
 	}
 }
 

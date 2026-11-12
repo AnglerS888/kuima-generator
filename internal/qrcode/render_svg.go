@@ -27,7 +27,7 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 	colorMode := ParseColorMode(opt.ColorMode)
 	ink := runInk(colorMode)    // 每笔画一色：彩虹 / 色环
 	rings := ringInk(colorMode) // 定位环的取色
-	hand := style == StyleHand
+	hand := inkLineStyle(style)
 	// 隐形配色：整张图只有一个很淡的墨色（SVG 没有底色，按白底推）
 	ghost := color.RGBA{}
 	if ghostActive(colorMode) {
@@ -35,7 +35,7 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 		ink = func(int, int, int) color.RGBA { return ghost }
 		rings = func(int) color.RGBA { return ghost }
 	}
-	// 手绘风格下徽标也要"手贴"上去：用位移滤镜把边缘揉歪，和满纸墨线才配得上
+	// 墨线风格下徽标也要"手贴"上去：用位移滤镜把边缘揉歪，和满纸墨线才配得上
 	if hand {
 		b.WriteString(badgeInkFilter)
 	}
@@ -50,8 +50,10 @@ func RenderSVG(info *EncodeInfo, opt SVGOptions) string {
 			html.EscapeString(badge), fmt6(float64(side)), fmt6(float64(side)), filter)
 	}
 	switch {
-	case hand:
-		writeHandSVG(&b, info.Grid, opt.ColorMode, ghost)
+	case style == StyleHand:
+		writeInkSVG(&b, handStrokes(info.Grid), opt.ColorMode, ghost)
+	case style == StyleScribble:
+		writeInkSVG(&b, scribbleStrokes(info.Grid), opt.ColorMode, ghost)
 	case style == StyleDot:
 		writeSVGCells(&b, info.Grid, ink, svgCircle)
 		writeSVGRings(&b, rings)
@@ -103,13 +105,13 @@ const badgeInkFilter = "<defs><filter id=\"wxbadgeink\" x=\"-12%\" y=\"-12%\" wi
 	"<feDisplacementMap in=\"SourceGraphic\" in2=\"wxink\" scale=\"5\" xChannelSelector=\"R\" yChannelSelector=\"G\"/>" +
 	"</filter></defs>\n"
 
-// writeHandSVG 输出手绘风格的矢量笔画。
+// writeInkSVG 输出墨线风格（手绘 / 笔画）的矢量笔画。
 //
-// 几何与位图路径完全同源（都来自 handStrokes），所以 PNG 与 SVG 的抖动
-// 位置是一致的；区别只是矢量图里一条笔画只能有一个笔宽，这里取该笔画的均值。
-func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost color.RGBA) {
+// 几何与位图路径完全同源（handStrokes / scribbleStrokes），所以 PNG 与 SVG 的
+// 抖动位置一致；区别只是矢量图里一条笔画只能有一个笔宽，这里取该笔画的均值。
+func writeInkSVG(b *strings.Builder, passes []inkPass, colorMode string, ghost color.RGBA) {
 	b.WriteString("<g fill=\"none\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
-	for idx, pass := range handStrokes(g) {
+	for idx, pass := range passes {
 		if len(pass.Pts) < 2 {
 			continue
 		}
@@ -131,10 +133,14 @@ func writeHandSVG(b *strings.Builder, g [72][16]byte, colorMode string, ghost co
 			}
 		}
 		stroke := ""
-		if ghost.A != 0 {
+		if pass.Erase {
+			// 飞白：SVG 没有底色，沿用本文件既有的「按白底画」假设，用白笔画
+			// 盖掉已经画上去的墨（定位环的白色内圈也是这么写的）。
+			stroke = " stroke=\"#ffffff\""
+		} else if ghost.A != 0 {
 			stroke = " stroke=\"" + svgHex(ghost) + "\""
 		} else if randomActive(colorMode) || gradientActive(colorMode) {
-			c := handInk(colorMode, idx, pass)
+			c := passInk(colorMode, idx, pass)
 			stroke = " stroke=\"" + svgHex(c) + "\""
 		}
 		fmt.Fprintf(b, "\"%s stroke-width=\"%s\"/>\n", stroke, fmt6(sum/float64(hi-lo)))

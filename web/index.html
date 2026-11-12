@@ -691,6 +691,7 @@
                 <select class="custom-select custom-select-sm" id="styleSel">
                   <option value="classic" selected>经典（与微信原生一致）</option>
                   <option value="hand">手绘（笔线抖动）</option>
+                  <option value="scribble">笔画（反复涂的笔触）</option>
                   <option value="dot">圆点</option>
                   <option value="block">方块</option>
                   <option value="line">线描（细环＋中心点）</option>
@@ -1118,7 +1119,7 @@
                 <tr><td><code>logo</code></td><td>string</td><td>否</td><td>中心 logo：<code>data:image/png;base64,...</code> / http(s) URL / 裸 base64 / 服务器本地路径。传 <b>GIF 动图</b>且 format=gif 时，逐帧替换中心图，得到动图。</td></tr>
                 <tr><td><code>logoRatio</code></td><td>float</td><td>否</td><td>logo 半径缩放，默认 1（半径 108/600）。&gt;1.12 开始压到数据格，靠纠错兜底。</td></tr>
                 <tr><td><code>badge</code></td><td>string</td><td>否</td><td>角落徽标：<code>default</code>（默认，内嵌图，SVG 写出 data URI、离线可用）/ <code>native</code>（写回远程 URL，与原生实现逐字节一致）/ <code>none</code> 不画 / 自定义图片 URL。</td></tr>
-                <tr><td><code>style</code></td><td>string</td><td>否</td><td>笔画风格（只决定形状）：<code>classic</code>（默认，等宽胶囊）/ <code>hand</code>（手绘）/ <code>dot</code>（圆点）/ <code>block</code>（方块）/ <code>line</code>（线描：细环＋中心点）。</td></tr>
+                <tr><td><code>style</code></td><td>string</td><td>否</td><td>笔画风格（只决定形状）：<code>classic</code>（默认，等宽胶囊）/ <code>hand</code>（手绘）/ <code>scribble</code>（笔画：反复涂的粗糙笔触，边缘毛糙、留飞白）/ <code>dot</code>（圆点）/ <code>block</code>（方块）/ <code>line</code>（线描：细环＋中心点）。</td></tr>
                 <tr><td><code>color</code></td><td>string</td><td>否</td><td>配色（只决定墨色，可与任意笔画风格组合）：<code>solid</code>（默认，用 <code>fg</code>）/ <code>rainbow</code>（色环：按半径渐变）/ <code>random</code>（彩虹：每一笔随机一色）/ <code>ghost</code>（隐形：墨色只比底色深几级，肉眼几乎看不出，徽标自动隐藏）。除 solid 外都不使用 <code>fg</code>。</td></tr>
                 <tr><td><code>ghost</code></td><td>int</td><td>否</td><td>隐形深度：墨色比底色深几级，2~40，默认 6。越小越隐形、越难扫（2~4 基本看不见但只有程序能解，8 以上手机更容易扫）。仅 <code>color=ghost</code> 时生效。</td></tr>
               </tbody>
@@ -1611,6 +1612,7 @@
   const styleHints = {
     classic: '经典：等宽笔画，与微信原生一致',
     hand: '手绘：笔线抖动、粗细不匀，仍可正常扫码',
+    scribble: '笔画：一段码点反复涂几道，边缘带毛刺、涂痕里留几丝飞白，最像手绘涂鸦',
     dot: '圆点：每格一颗圆珠，风格最轻快',
     block: '方块：每格一个方块，像素／复古味',
     line: '线描：细环 + 中心点，线稿感；墨量最轻'

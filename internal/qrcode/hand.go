@@ -18,8 +18,14 @@ import "math"
 // inkPt 是手绘笔画上的一个点：画布坐标 + 该点的笔宽（600 坐标系）。
 type inkPt struct{ X, Y, W float64 }
 
-// inkPass 是一条独立的手绘笔画（一道墨）。
-type inkPass struct{ Pts []inkPt }
+// inkPass 是一条独立的墨线笔画（一道墨）。
+//
+// Erase 为真时这一道不是落墨而是擦白：笔画风用它留出「飞白」——
+// 涂过的地方还剩下几丝没吃到墨的白缝。
+type inkPass struct {
+	Pts   []inkPt
+	Erase bool
+}
 
 // 手绘抖动幅度（600 坐标系下的像素）。格子边长约 11.1、笔宽约 10.8。
 //

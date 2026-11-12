@@ -33,7 +33,7 @@ type encodeReq struct {
 	Logo      string  `json:"logo"` // data URL / http(s) URL / 裸 base64 / 本地路径
 	LogoRatio float64 `json:"logoRatio"`
 	Badge     string  `json:"badge"` // default | none | URL
-	Style     string  `json:"style"` // classic | hand | dot | block | line | rainbow（笔画风格）
+	Style     string  `json:"style"` // classic | hand | scribble | dot | block | line | rainbow（笔画风格）
 	Color     string  `json:"color"` // solid | rainbow | ghost（配色）
 	Ghost     int     `json:"ghost"` // 隐形配色的深度：墨色比底色深几级（2~40）
 

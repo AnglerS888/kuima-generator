@@ -13,6 +13,9 @@ const (
 	StyleClassic = "classic"
 	// StyleHand 是手绘风格：笔宽起伏、中线抖动、定位环手绘化。
 	StyleHand = "hand"
+	// StyleScribble 是笔画风格：一段游程反复涂上几道短划，边缘带毛刺，
+	// 两端甩出细挑，单格是一记歪点 —— 像用马克笔在纸上随手涂出来的。
+	StyleScribble = "scribble"
 	// StyleDot 是圆点风格：每格一颗圆珠。
 	StyleDot = "dot"
 	// StyleBlock 是方块风格：每格一个沿极轴对齐的方块，像素味。
@@ -23,7 +26,14 @@ const (
 
 // StyleNames 是所有可用风格（供文档/枚举提示使用）。
 var StyleNames = []string{
-	StyleClassic, StyleHand, StyleDot, StyleBlock, StyleLine,
+	StyleClassic, StyleHand, StyleScribble, StyleDot, StyleBlock, StyleLine,
+}
+
+// inkLineStyle 报告这种风格是否「逐笔画描」——
+// 手绘与笔画风都要把整枚码拆成墨线来画（PNG 铺点列、SVG 出 path），
+// 徽标也要跟着一起揉歪，所以两者共用同一条渲染分支。
+func inkLineStyle(style string) bool {
+	return style == StyleHand || style == StyleScribble
 }
 
 // ParseStyle 把请求里的风格名归一化，未识别时回落到 classic。
@@ -32,6 +42,9 @@ func ParseStyle(s string) string {
 	case "hand", "hand-drawn", "handdrawn", "handwrite", "handwriting",
 		"sketch", "sketchy", "doodle", "ink", "brush", "手绘", "手写", "涂鸦":
 		return StyleHand
+	case "scribble", "scribbled", "scrawl", "scrawly", "charcoal", "crayon",
+		"marker", "chalk", "笔画", "笔触", "涂画", "潦草":
+		return StyleScribble
 	case "dot", "dots", "round", "circle", "bead", "圆点", "圆珠", "点阵":
 		return StyleDot
 	case "block", "blocks", "square", "squares", "pixel", "pixels", "方块", "像素":

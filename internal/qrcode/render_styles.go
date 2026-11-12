@@ -61,8 +61,12 @@ func ringInk(colorMode string) func(i int) color.RGBA {
 	return nil
 }
 
-// handInk 给手绘的一条笔画取色：色环按它所在的半径，彩虹按笔画序号散列。
-func handInk(colorMode string, i int, pass inkPass) color.RGBA {
+// passInk 给一条墨线笔画（手绘 / 笔画风）取色：色环按它所在的半径，
+// 彩虹按笔画序号散列。
+func passInk(colorMode string, i int, pass inkPass) color.RGBA {
+	if len(pass.Pts) == 0 {
+		return color.RGBA{}
+	}
 	switch {
 	case randomActive(colorMode):
 		p := pass.Pts[0]
